@@ -1,0 +1,5005 @@
+[
+  {
+    "title_part": "Part II. Preparing for the Build",
+    "chapter_count": 3,
+    "chapters": [
+      {
+        "title_chapter": "Chapter 2. Preparing the Host System",
+        "page_count": 7,
+        "pages": [
+          {
+            "title": "2.2. Host System Requirements",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > version-check.sh << \"EOF\"\n#!/bin/bash\n# A script to list version numbers of critical development tools\n\n# If you have tools installed in other directories, adjust PATH here AND\n# in ~lfs/.bashrc (section 4.4) as well.\n\nLC_ALL=C \nPATH=/usr/bin:/bin\n\nbail() { echo \"FATAL: $1\"; exit 1; }\ngrep --version > /dev/null 2> /dev/null || bail \"grep does not work\"\nsed '' /dev/null || bail \"sed does not work\"\nsort   /dev/null || bail \"sort does not work\"\n\nver_check()\n{\n   if ! type -p $2 &>/dev/null\n   then \n     echo \"ERROR: Cannot find $2 ($1)\"; return 1; \n   fi\n   v=$($2 --version 2>&1 | grep -E -o '[0-9]+\\.[0-9\\.]+[a-z]*' | head -n1)\n   if printf '%s\\n' $3 $v | sort --version-sort --check &>/dev/null\n   then \n     printf \"OK:    %-9s %-6s >= $3\\n\" \"$1\" \"$v\"; return 0;\n   else \n     printf \"ERROR: %-9s is TOO OLD ($3 or later required)\\n\" \"$1\"; \n     return 1; \n   fi\n}\n\nver_kernel()\n{\n   kver=$(uname -r | grep -E -o '^[0-9\\.]+')\n   if printf '%s\\n' $1 $kver | sort --version-sort --check &>/dev/null\n   then \n     printf \"OK:    Linux Kernel $kver >= $1\\n\"; return 0;\n   else \n     printf \"ERROR: Linux Kernel ($kver) is TOO OLD ($1 or later required)\\n\" \"$kver\"; \n     return 1; \n   fi\n}\n\n# Coreutils first because-sort needs Coreutils >= 7.0\nver_check Coreutils      sort     7.0 || bail \"--version-sort unsupported\"\nver_check Bash           bash     3.2\nver_check Binutils       ld       2.13.1\nver_check Bison          bison    2.7\nver_check Diffutils      diff     2.8.1\nver_check Findutils      find     4.2.31\nver_check Gawk           gawk     4.0.1\nver_check GCC            gcc      5.1\nver_check \"GCC (C++)\"    g++      5.1\nver_check Grep           grep     2.5.1a\nver_check Gzip           gzip     1.3.12\nver_check M4             m4       1.4.10\nver_check Make           make     4.0\nver_check Patch          patch    2.5.4\nver_check Perl           perl     5.8.8\nver_check Python         python3  3.4\nver_check Sed            sed      4.1.5\nver_check Tar            tar      1.22\nver_check Texinfo        texi2any 5.0\nver_check Xz             xz       5.0.0\nver_kernel 4.14\n\nif mount | grep -q 'devpts on /dev/pts' && [ -e /dev/ptmx ]\nthen echo \"OK:    Linux Kernel supports UNIX 98 PTY\";\nelse echo \"ERROR: Linux Kernel does NOT support UNIX 98 PTY\"; fi\n\nalias_check() {\n   if $1 --version 2>&1 | grep -qi $2\n   then printf \"OK:    %-4s is $2\\n\" \"$1\";\n   else printf \"ERROR: %-4s is NOT $2\\n\" \"$1\"; fi\n}\necho \"Aliases:\"\nalias_check awk GNU\nalias_check yacc Bison\nalias_check sh Bash\n\necho \"Compiler check:\"\nif printf \"int main(){}\" | g++ -x c++ -\nthen echo \"OK:    g++ works\";\nelse echo \"ERROR: g++ does NOT work\"; fi\nrm -f a.out\nEOF\n\nbash version-check.sh",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "2.5. Creating a File System on the Partition",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkfs -v -t ext4 /dev/<xxx>",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "mkswap /dev/<yyy>",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "2.6. Setting The $LFS Variable",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "export LFS=/mnt/lfs",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "echo $LFS",
+                "class": "admon caution",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "2.7. Mounting the New Partition",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -pv $LFS\nmount -v -t ext4 /dev/<xxx> $LFS",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv $LFS\nmount -v -t ext4 /dev/<xxx> $LFS\nmkdir -v $LFS/home\nmount -v -t ext4 /dev/<yyy> $LFS/home",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "/sbin/swapon -v /dev/<zzz>",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 3. Packages and Patches",
+        "page_count": 3,
+        "pages": [
+          {
+            "title": "3.1. Introduction",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -v $LFS/sources",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "chmod -v a+wt $LFS/sources",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "wget --input-file=wget-list-systemd --continue --directory-prefix=$LFS/sources",
+                "class": "sect1",
+                "check": true
+              },
+              {
+                "command": "pushd $LFS/sources\n  md5sum -c md5sums\npopd",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "chown root:root $LFS/sources/*",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 4. Final Preparations",
+        "page_count": 6,
+        "pages": [
+          {
+            "title": "4.2. Creating a Limited Directory Layout in the LFS Filesystem",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -pv $LFS/{etc,var} $LFS/usr/{bin,lib,sbin}\n\nfor i in bin lib sbin; do\n  ln -sv usr/$i $LFS/$i\ndone\n\ncase $(uname -m) in\n  x86_64) mkdir -pv $LFS/lib64 ;;\nesac",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv $LFS/tools",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "4.3. Adding the LFS User",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "groupadd lfs\nuseradd -s /bin/bash -g lfs -m -k /dev/null lfs",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "passwd lfs",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "chown -v lfs $LFS/{usr{,/*},lib,var,etc,bin,sbin,tools}\ncase $(uname -m) in\n  x86_64) chown -v lfs $LFS/lib64 ;;\nesac",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "su - lfs",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "4.4. Setting Up the Environment",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > ~/.bash_profile << \"EOF\"\nexec env -i HOME=$HOME TERM=$TERM PS1='\\u:\\w\\$ ' /bin/bash\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > ~/.bashrc << \"EOF\"\nset +h\numask 022\nLFS=/mnt/lfs\nLC_ALL=POSIX\nLFS_TGT=$(uname -m)-lfs-linux-gnu\nPATH=/usr/bin\nif [ ! -L /bin ]; then PATH=/bin:$PATH; fi\nPATH=$LFS/tools/bin:$PATH\nCONFIG_SITE=$LFS/usr/share/config.site\nexport LFS LC_ALL LFS_TGT PATH CONFIG_SITE\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "[ ! -e /etc/bash.bashrc ] || mv -v /etc/bash.bashrc /etc/bash.bashrc.NOUSE",
+                "class": "admon important",
+                "check": false
+              },
+              {
+                "command": "source ~/.bash_profile",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "4.5. About SBUs",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "export MAKEFLAGS='-j4'",
+                "class": "admon note",
+                "check": false
+              },
+              {
+                "command": "make -j4",
+                "class": "admon note",
+                "check": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title_part": "Part III. Building the LFS Cross Toolchain and Temporary Tools",
+    "chapter_count": 3,
+    "chapters": [
+      {
+        "title_chapter": "Chapter 5. Compiling a Cross-Toolchain",
+        "page_count": 6,
+        "pages": [
+          {
+            "title": "5.2. Binutils-2.41 - Pass 1",
+            "package": "Binutils-2.41",
+            "info": {
+              "full": "binutils-2.41.tar.xz",
+              "md5": "256d7e0ad998e423030c84483a7c1e30",
+              "stem": "binutils-2.41",
+              "suffix": "tar.xz",
+              "name": "binutils",
+              "version": "2.41",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=$LFS/tools \\\n             --with-sysroot=$LFS \\\n             --target=$LFS_TGT   \\\n             --disable-nls       \\\n             --enable-gprofng=no \\\n             --disable-werror",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "5.3. GCC-13.2.0 - Pass 1",
+            "package": "GCC-13.2.0",
+            "info": {
+              "full": "gcc-13.2.0.tar.xz",
+              "md5": "e0e48554cc6e4f261d55ddee9ab69075",
+              "stem": "gcc-13.2.0",
+              "suffix": "tar.xz",
+              "name": "gcc",
+              "version": "13.2.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "tar -xf ../mpfr-4.2.0.tar.xz\nmv -v mpfr-4.2.0 mpfr\ntar -xf ../gmp-6.3.0.tar.xz\nmv -v gmp-6.3.0 gmp\ntar -xf ../mpc-1.3.1.tar.gz\nmv -v mpc-1.3.1 mpc",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "case $(uname -m) in\n  x86_64)\n    sed -e '/m64=/s/lib64/lib/' \\\n        -i.orig gcc/config/i386/t-linux64\n ;;\nesac",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure                  \\\n    --target=$LFS_TGT         \\\n    --prefix=$LFS/tools       \\\n    --with-glibc-version=2.38 \\\n    --with-sysroot=$LFS       \\\n    --with-newlib             \\\n    --without-headers         \\\n    --enable-default-pie      \\\n    --enable-default-ssp      \\\n    --disable-nls             \\\n    --disable-shared          \\\n    --disable-multilib        \\\n    --disable-threads         \\\n    --disable-libatomic       \\\n    --disable-libgomp         \\\n    --disable-libquadmath     \\\n    --disable-libssp          \\\n    --disable-libvtv          \\\n    --disable-libstdcxx       \\\n    --enable-languages=c,c++",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cd ..\ncat gcc/limitx.h gcc/glimits.h gcc/limity.h > \\\n  `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "5.4. Linux-6.4.12 API Headers",
+            "package": "Linux-6.4.12",
+            "info": {
+              "full": "linux-6.4.12.tar.xz",
+              "md5": "24570ba0ef9dd592bd640a1a41686fac",
+              "stem": "linux-6.4.12",
+              "suffix": "tar.xz",
+              "name": "linux",
+              "version": "6.4.12",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "make mrproper",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make headers\nfind usr/include -type f ! -name '*.h' -delete",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -rv usr/include $LFS/usr",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "5.5. Glibc-2.38",
+            "package": "Glibc-2.38",
+            "info": {
+              "full": "glibc-2.38.tar.xz",
+              "md5": "778cce0ea6bf7f84ca8caacf4a01f45b",
+              "stem": "glibc-2.38",
+              "suffix": "tar.xz",
+              "name": "glibc",
+              "version": "2.38",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "case $(uname -m) in\n    i?86)   ln -sfv ld-linux.so.2 $LFS/lib/ld-lsb.so.3\n    ;;\n    x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64\n            ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64/ld-lsb-x86-64.so.3\n    ;;\nesac",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "patch -Np1 -i ../glibc-2.38-fhs-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "echo \"rootsbindir=/usr/sbin\" > configparms",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure                             \\\n      --prefix=/usr                      \\\n      --host=$LFS_TGT                    \\\n      --build=$(../scripts/config.guess) \\\n      --enable-kernel=4.14               \\\n      --with-headers=$LFS/usr/include    \\\n      libc_cv_slibdir=/usr/lib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed '/RTLDLIST=/s@/usr@@g' -i $LFS/usr/bin/ldd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "echo 'int main(){}' | $LFS_TGT-gcc -xc -\nreadelf -l a.out | grep ld-linux",
+                "class": "admon caution",
+                "check": false
+              },
+              {
+                "command": "rm -v a.out",
+                "class": "admon caution",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "5.6. Libstdc++ from GCC-13.2.0",
+            "package": "Libstdc++",
+            "info": {
+              "full": "gcc-13.2.0.tar.xz",
+              "md5": "e0e48554cc6e4f261d55ddee9ab69075",
+              "stem": "gcc-13.2.0",
+              "suffix": "tar.xz",
+              "name": "gcc",
+              "version": "13.2.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../libstdc++-v3/configure           \\\n    --host=$LFS_TGT                 \\\n    --build=$(../config.guess)      \\\n    --prefix=/usr                   \\\n    --disable-multilib              \\\n    --disable-nls                   \\\n    --disable-libstdcxx-pch         \\\n    --with-gxx-include-dir=/tools/$LFS_TGT/include/c++/13.2.0",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v $LFS/usr/lib/lib{stdc++,stdc++fs,supc++}.la",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 6. Cross Compiling Temporary Tools",
+        "page_count": 18,
+        "pages": [
+          {
+            "title": "6.2. M4-1.4.19",
+            "package": "M4-1.4.19",
+            "info": {
+              "full": "m4-1.4.19.tar.xz",
+              "md5": "0d90823e1426f1da2fd872df0311298d",
+              "stem": "m4-1.4.19",
+              "suffix": "tar.xz",
+              "name": "m4",
+              "version": "1.4.19",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.3. Ncurses-6.4",
+            "package": "Ncurses-6.4",
+            "info": {
+              "full": "ncurses-6.4.tar.gz",
+              "md5": "5a62487b5d4ac6b132fe2bf9f8fad29b",
+              "stem": "ncurses-6.4",
+              "suffix": "tar.gz",
+              "name": "ncurses",
+              "version": "6.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i s/mawk// configure",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir build\npushd build\n  ../configure\n  make -C include\n  make -C progs tic\npopd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr                \\\n            --host=$LFS_TGT              \\\n            --build=$(./config.guess)    \\\n            --mandir=/usr/share/man      \\\n            --with-manpage-format=normal \\\n            --with-shared                \\\n            --without-normal             \\\n            --with-cxx-shared            \\\n            --without-debug              \\\n            --without-ada                \\\n            --disable-stripping          \\\n            --enable-widec",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS TIC_PATH=$(pwd)/build/progs/tic install\necho \"INPUT(-lncursesw)\" > $LFS/usr/lib/libncurses.so",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.4. Bash-5.2.15",
+            "package": "Bash-5.2.15",
+            "info": {
+              "full": "bash-5.2.15.tar.gz",
+              "md5": "4281bb43497f3905a308430a8d6a30a5",
+              "stem": "bash-5.2.15",
+              "suffix": "tar.gz",
+              "name": "bash",
+              "version": "5.2.15",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                      \\\n            --build=$(sh support/config.guess) \\\n            --host=$LFS_TGT                    \\\n            --without-bash-malloc",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv bash $LFS/bin/sh",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.5. Coreutils-9.3",
+            "package": "Coreutils-9.3",
+            "info": {
+              "full": "coreutils-9.3.tar.xz",
+              "md5": "040b4b7acaf89499834bfc79609af29f",
+              "stem": "coreutils-9.3",
+              "suffix": "tar.xz",
+              "name": "coreutils",
+              "version": "9.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                     \\\n            --host=$LFS_TGT                   \\\n            --build=$(build-aux/config.guess) \\\n            --enable-install-program=hostname \\\n            --enable-no-install-program=kill,uptime \\\n            gl_cv_macro_MB_CUR_MAX_good=y",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mv -v $LFS/usr/bin/chroot              $LFS/usr/sbin\nmkdir -pv $LFS/usr/share/man/man8\nmv -v $LFS/usr/share/man/man1/chroot.1 $LFS/usr/share/man/man8/chroot.8\nsed -i 's/\"1\"/\"8\"/'                    $LFS/usr/share/man/man8/chroot.8",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.6. Diffutils-3.10",
+            "package": "Diffutils-3.10",
+            "info": {
+              "full": "diffutils-3.10.tar.xz",
+              "md5": "2745c50f6f4e395e7b7d52f902d075bf",
+              "stem": "diffutils-3.10",
+              "suffix": "tar.xz",
+              "name": "diffutils",
+              "version": "3.10",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(./build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.7. File-5.45",
+            "package": "File-5.45",
+            "info": {
+              "full": "file-5.45.tar.gz",
+              "md5": "26b2a96d4e3a8938827a1e572afd527a",
+              "stem": "file-5.45",
+              "suffix": "tar.gz",
+              "name": "file",
+              "version": "5.45",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir build\npushd build\n  ../configure --disable-bzlib      \\\n               --disable-libseccomp \\\n               --disable-xzlib      \\\n               --disable-zlib\n  make\npopd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr --host=$LFS_TGT --build=$(./config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make FILE_COMPILE=$(pwd)/build/src/file",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v $LFS/usr/lib/libmagic.la",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.8. Findutils-4.9.0",
+            "package": "Findutils-4.9.0",
+            "info": {
+              "full": "findutils-4.9.0.tar.xz",
+              "md5": "4a4a547e888a944b2f3af31d789a1137",
+              "stem": "findutils-4.9.0",
+              "suffix": "tar.xz",
+              "name": "findutils",
+              "version": "4.9.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                   \\\n            --localstatedir=/var/lib/locate \\\n            --host=$LFS_TGT                 \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.9. Gawk-5.2.2",
+            "package": "Gawk-5.2.2",
+            "info": {
+              "full": "gawk-5.2.2.tar.xz",
+              "md5": "d63b4de2c722cbd9b8cc8e6f14d78a1e",
+              "stem": "gawk-5.2.2",
+              "suffix": "tar.xz",
+              "name": "gawk",
+              "version": "5.2.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i 's/extras//' Makefile.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.10. Grep-3.11",
+            "package": "Grep-3.11",
+            "info": {
+              "full": "grep-3.11.tar.xz",
+              "md5": "7c9bbd74492131245f7cdb291fa142c0",
+              "stem": "grep-3.11",
+              "suffix": "tar.xz",
+              "name": "grep",
+              "version": "3.11",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(./build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.11. Gzip-1.12",
+            "package": "Gzip-1.12",
+            "info": {
+              "full": "gzip-1.12.tar.xz",
+              "md5": "9608e4ac5f061b2a6479dc44e917a5db",
+              "stem": "gzip-1.12",
+              "suffix": "tar.xz",
+              "name": "gzip",
+              "version": "1.12",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --host=$LFS_TGT",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.12. Make-4.4.1",
+            "package": "Make-4.4.1",
+            "info": {
+              "full": "make-4.4.1.tar.gz",
+              "md5": "c8469a3713cbbe04d955d4ae4be23eeb",
+              "stem": "make-4.4.1",
+              "suffix": "tar.gz",
+              "name": "make",
+              "version": "4.4.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --without-guile \\\n            --host=$LFS_TGT \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.13. Patch-2.7.6",
+            "package": "Patch-2.7.6",
+            "info": {
+              "full": "patch-2.7.6.tar.xz",
+              "md5": "78ad9937e4caadcba1526ef1853730d5",
+              "stem": "patch-2.7.6",
+              "suffix": "tar.xz",
+              "name": "patch",
+              "version": "2.7.6",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.14. Sed-4.9",
+            "package": "Sed-4.9",
+            "info": {
+              "full": "sed-4.9.tar.xz",
+              "md5": "6aac9b2dbafcd5b7a67a8a9bcb8036c3",
+              "stem": "sed-4.9",
+              "suffix": "tar.xz",
+              "name": "sed",
+              "version": "4.9",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --host=$LFS_TGT \\\n            --build=$(./build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.15. Tar-1.35",
+            "package": "Tar-1.35",
+            "info": {
+              "full": "tar-1.35.tar.xz",
+              "md5": "a2d8042658cfd8ea939e6d911eaf4152",
+              "stem": "tar-1.35",
+              "suffix": "tar.xz",
+              "name": "tar",
+              "version": "1.35",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                     \\\n            --host=$LFS_TGT                   \\\n            --build=$(build-aux/config.guess)",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.16. Xz-5.4.4",
+            "package": "Xz-5.4.4",
+            "info": {
+              "full": "xz-5.4.4.tar.xz",
+              "md5": "d83d6f64a64f88759e312b8a38c3add6",
+              "stem": "xz-5.4.4",
+              "suffix": "tar.xz",
+              "name": "xz",
+              "version": "5.4.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                     \\\n            --host=$LFS_TGT                   \\\n            --build=$(build-aux/config.guess) \\\n            --disable-static                  \\\n            --docdir=/usr/share/doc/xz-5.4.4",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v $LFS/usr/lib/liblzma.la",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.17. Binutils-2.41 - Pass 2",
+            "package": "Binutils-2.41",
+            "info": {
+              "full": "binutils-2.41.tar.xz",
+              "md5": "256d7e0ad998e423030c84483a7c1e30",
+              "stem": "binutils-2.41",
+              "suffix": "tar.xz",
+              "name": "binutils",
+              "version": "2.41",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed '6009s/$add_dir//' -i ltmain.sh",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure                   \\\n    --prefix=/usr              \\\n    --build=$(../config.guess) \\\n    --host=$LFS_TGT            \\\n    --disable-nls              \\\n    --enable-shared            \\\n    --enable-gprofng=no        \\\n    --disable-werror           \\\n    --enable-64-bit-bfd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v $LFS/usr/lib/lib{bfd,ctf,ctf-nobfd,opcodes,sframe}.{a,la}",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "6.18. GCC-13.2.0 - Pass 2",
+            "package": "GCC-13.2.0",
+            "info": {
+              "full": "gcc-13.2.0.tar.xz",
+              "md5": "e0e48554cc6e4f261d55ddee9ab69075",
+              "stem": "gcc-13.2.0",
+              "suffix": "tar.xz",
+              "name": "gcc",
+              "version": "13.2.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "tar -xf ../mpfr-4.2.0.tar.xz\nmv -v mpfr-4.2.0 mpfr\ntar -xf ../gmp-6.3.0.tar.xz\nmv -v gmp-6.3.0 gmp\ntar -xf ../mpc-1.3.1.tar.gz\nmv -v mpc-1.3.1 mpc",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "case $(uname -m) in\n  x86_64)\n    sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64\n  ;;\nesac",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed '/thread_header =/s/@.*@/gthr-posix.h/' \\\n    -i libgcc/Makefile.in libstdc++-v3/include/Makefile.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure                                       \\\n    --build=$(../config.guess)                     \\\n    --host=$LFS_TGT                                \\\n    --target=$LFS_TGT                              \\\n    LDFLAGS_FOR_TARGET=-L$PWD/$LFS_TGT/libgcc      \\\n    --prefix=/usr                                  \\\n    --with-build-sysroot=$LFS                      \\\n    --enable-default-pie                           \\\n    --enable-default-ssp                           \\\n    --disable-nls                                  \\\n    --disable-multilib                             \\\n    --disable-libatomic                            \\\n    --disable-libgomp                              \\\n    --disable-libquadmath                          \\\n    --disable-libsanitizer                         \\\n    --disable-libssp                               \\\n    --disable-libvtv                               \\\n    --enable-languages=c,c++",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$LFS install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv gcc $LFS/usr/bin/cc",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 7. Entering Chroot and Building Additional Temporary Tools",
+        "page_count": 13,
+        "pages": [
+          {
+            "title": "7.2. Changing Ownership",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "chown -R root:root $LFS/{usr,lib,var,etc,bin,sbin,tools}\ncase $(uname -m) in\n  x86_64) chown -R root:root $LFS/lib64 ;;\nesac",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.3. Preparing Virtual Kernel File Systems",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -pv $LFS/{dev,proc,sys,run}",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "mount -v --bind /dev $LFS/dev",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "mount -v --bind /dev/pts $LFS/dev/pts\nmount -vt proc proc $LFS/proc\nmount -vt sysfs sysfs $LFS/sys\nmount -vt tmpfs tmpfs $LFS/run",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "if [ -h $LFS/dev/shm ]; then\n  mkdir -pv $LFS/$(readlink $LFS/dev/shm)\nelse\n  mount -t tmpfs -o nosuid,nodev tmpfs $LFS/dev/shm\nfi",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.4. Entering the Chroot Environment",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "chroot \"$LFS\" /usr/bin/env -i   \\\n    HOME=/root                  \\\n    TERM=\"$TERM\"                \\\n    PS1='(lfs chroot) \\u:\\w\\$ ' \\\n    PATH=/usr/bin:/usr/sbin     \\\n    /bin/bash --login",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.5. Creating Directories",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -pv /{boot,home,mnt,opt,srv}",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv /etc/{opt,sysconfig}\nmkdir -pv /lib/firmware\nmkdir -pv /media/{floppy,cdrom}\nmkdir -pv /usr/{,local/}{include,src}\nmkdir -pv /usr/local/{bin,lib,sbin}\nmkdir -pv /usr/{,local/}share/{color,dict,doc,info,locale,man}\nmkdir -pv /usr/{,local/}share/{misc,terminfo,zoneinfo}\nmkdir -pv /usr/{,local/}share/man/man{1..8}\nmkdir -pv /var/{cache,local,log,mail,opt,spool}\nmkdir -pv /var/lib/{color,misc,locate}\n\nln -sfv /run /var/run\nln -sfv /run/lock /var/lock\n\ninstall -dv -m 0750 /root\ninstall -dv -m 1777 /tmp /var/tmp",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.6. Creating Essential Files and Symlinks",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "ln -sv /proc/self/mounts /etc/mtab",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/hosts << EOF\n127.0.0.1  localhost $(hostname)\n::1        localhost\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/passwd << \"EOF\"\nroot:x:0:0:root:/root:/bin/bash\nbin:x:1:1:bin:/dev/null:/usr/bin/false\ndaemon:x:6:6:Daemon User:/dev/null:/usr/bin/false\nmessagebus:x:18:18:D-Bus Message Daemon User:/run/dbus:/usr/bin/false\nsystemd-journal-gateway:x:73:73:systemd Journal Gateway:/:/usr/bin/false\nsystemd-journal-remote:x:74:74:systemd Journal Remote:/:/usr/bin/false\nsystemd-journal-upload:x:75:75:systemd Journal Upload:/:/usr/bin/false\nsystemd-network:x:76:76:systemd Network Management:/:/usr/bin/false\nsystemd-resolve:x:77:77:systemd Resolver:/:/usr/bin/false\nsystemd-timesync:x:78:78:systemd Time Synchronization:/:/usr/bin/false\nsystemd-coredump:x:79:79:systemd Core Dumper:/:/usr/bin/false\nuuidd:x:80:80:UUID Generation Daemon User:/dev/null:/usr/bin/false\nsystemd-oom:x:81:81:systemd Out Of Memory Daemon:/:/usr/bin/false\nnobody:x:65534:65534:Unprivileged User:/dev/null:/usr/bin/false\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/group << \"EOF\"\nroot:x:0:\nbin:x:1:daemon\nsys:x:2:\nkmem:x:3:\ntape:x:4:\ntty:x:5:\ndaemon:x:6:\nfloppy:x:7:\ndisk:x:8:\nlp:x:9:\ndialout:x:10:\naudio:x:11:\nvideo:x:12:\nutmp:x:13:\nusb:x:14:\ncdrom:x:15:\nadm:x:16:\nmessagebus:x:18:\nsystemd-journal:x:23:\ninput:x:24:\nmail:x:34:\nkvm:x:61:\nsystemd-journal-gateway:x:73:\nsystemd-journal-remote:x:74:\nsystemd-journal-upload:x:75:\nsystemd-network:x:76:\nsystemd-resolve:x:77:\nsystemd-timesync:x:78:\nsystemd-coredump:x:79:\nuuidd:x:80:\nsystemd-oom:x:81:\nwheel:x:97:\nusers:x:999:\nnogroup:x:65534:\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "echo \"tester:x:101:101::/home/tester:/bin/bash\" >> /etc/passwd\necho \"tester:x:101:\" >> /etc/group\ninstall -o tester -d /home/tester",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "exec /usr/bin/bash --login",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "touch /var/log/{btmp,lastlog,faillog,wtmp}\nchgrp -v utmp /var/log/lastlog\nchmod -v 664  /var/log/lastlog\nchmod -v 600  /var/log/btmp",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.7. Gettext-0.22",
+            "package": "Gettext-0.22",
+            "info": {
+              "full": "gettext-0.22.tar.xz",
+              "md5": "db2f3daf34fd5b85ab1a56f9033e42d1",
+              "stem": "gettext-0.22",
+              "suffix": "tar.xz",
+              "name": "gettext",
+              "version": "0.22",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --disable-shared",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -v gettext-tools/src/{msgfmt,msgmerge,xgettext} /usr/bin",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.8. Bison-3.8.2",
+            "package": "Bison-3.8.2",
+            "info": {
+              "full": "bison-3.8.2.tar.xz",
+              "md5": "c28f119f405a2304ff0a7ccdcc629713",
+              "stem": "bison-3.8.2",
+              "suffix": "tar.xz",
+              "name": "bison",
+              "version": "3.8.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr \\\n            --docdir=/usr/share/doc/bison-3.8.2",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.9. Perl-5.38.0",
+            "package": "Perl-5.38.0",
+            "info": {
+              "full": "perl-5.38.0.tar.xz",
+              "md5": "e1c8aaec897dd386c741f97eef9f2e87",
+              "stem": "perl-5.38.0",
+              "suffix": "tar.xz",
+              "name": "perl",
+              "version": "5.38.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sh Configure -des                                        \\\n             -Dprefix=/usr                               \\\n             -Dvendorprefix=/usr                         \\\n             -Duseshrplib                                \\\n             -Dprivlib=/usr/lib/perl5/5.38/core_perl     \\\n             -Darchlib=/usr/lib/perl5/5.38/core_perl     \\\n             -Dsitelib=/usr/lib/perl5/5.38/site_perl     \\\n             -Dsitearch=/usr/lib/perl5/5.38/site_perl    \\\n             -Dvendorlib=/usr/lib/perl5/5.38/vendor_perl \\\n             -Dvendorarch=/usr/lib/perl5/5.38/vendor_perl",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.10. Python-3.11.4",
+            "package": "Python-3.11.4",
+            "info": {
+              "full": "Python-3.11.4.tar.xz",
+              "md5": "fb7f7eae520285788449d569e45b6718",
+              "stem": "Python-3.11.4",
+              "suffix": "tar.xz",
+              "name": "Python",
+              "version": "3.11.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr   \\\n            --enable-shared \\\n            --without-ensurepip",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.11. Texinfo-7.0.3",
+            "package": "Texinfo-7.0.3",
+            "info": {
+              "full": "texinfo-7.0.3.tar.xz",
+              "md5": "37bf94fd255729a14d4ea3dda119f81a",
+              "stem": "texinfo-7.0.3",
+              "suffix": "tar.xz",
+              "name": "texinfo",
+              "version": "7.0.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.12. Util-linux-2.39.1",
+            "package": "Util-linux-2.39.1",
+            "info": {
+              "full": "util-linux-2.39.1.tar.xz",
+              "md5": "c542cd7c0726254e4b3006a9b428201a",
+              "stem": "util-linux-2.39.1",
+              "suffix": "tar.xz",
+              "name": "util-linux",
+              "version": "2.39.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -pv /var/lib/hwclock",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure ADJTIME_PATH=/var/lib/hwclock/adjtime    \\\n            --libdir=/usr/lib    \\\n            --runstatedir=/run   \\\n            --docdir=/usr/share/doc/util-linux-2.39.1 \\\n            --disable-chfn-chsh  \\\n            --disable-login      \\\n            --disable-nologin    \\\n            --disable-su         \\\n            --disable-setpriv    \\\n            --disable-runuser    \\\n            --disable-pylibmount \\\n            --disable-static     \\\n            --without-python",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "7.13. Cleaning up and Saving the Temporary System",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "rm -rf /usr/share/{info,man,doc}/*",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "find /usr/{lib,libexec} -name \\*.la -delete",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "rm -rf /tools",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "exit",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "mountpoint -q $LFS/dev/shm && umount $LFS/dev/shm\numount $LFS/dev/pts\numount $LFS/{sys,proc,run,dev}",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "cd $LFS\ntar -cJpf $HOME/lfs-temp-tools-12.0-systemd.tar.xz .",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title_part": "Part IV. Building the LFS System",
+    "chapter_count": 4,
+    "chapters": [
+      {
+        "title_chapter": "Chapter 8. Installing Basic System Software",
+        "page_count": 82,
+        "pages": [
+          {
+            "title": "8.2. Package Management",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "grep -l 'libfoo.*deleted' /proc/*/maps | tr -cd 0-9\\\\n | xargs -r ps u",
+                "class": "listitem",
+                "check": true
+              },
+              {
+                "command": "./configure --prefix=/usr/pkg/libfoo/1.1\nmake\nmake install",
+                "class": "sect3",
+                "check": true
+              },
+              {
+                "command": "./configure --prefix=/usr\nmake\nmake DESTDIR=/usr/pkg/libfoo/1.1 install",
+                "class": "sect3",
+                "check": true
+              }
+            ]
+          },
+          {
+            "title": "8.3. Man-pages-6.05.01",
+            "package": "Man-pages-6.05.01",
+            "info": {
+              "full": "man-pages-6.05.01.tar.xz",
+              "md5": "de4563b797cf9b1e0b0d73628b35e442",
+              "stem": "man-pages-6.05.01",
+              "suffix": "tar.xz",
+              "name": "man-pages",
+              "version": "6.05.01",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "rm -v man3/crypt*",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make prefix=/usr install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.4. Iana-Etc-20230810",
+            "package": "Iana-Etc-20230810",
+            "info": {
+              "full": "iana-etc-20230810.tar.gz",
+              "md5": "0502bd41cc0bf1c1c3cd8651058b9650",
+              "stem": "iana-etc-20230810",
+              "suffix": "tar.gz",
+              "name": "iana-etc",
+              "version": "20230810",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "cp services protocols /etc",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.5. Glibc-2.38",
+            "package": "Glibc-2.38",
+            "info": {
+              "full": "glibc-2.38.tar.xz",
+              "md5": "778cce0ea6bf7f84ca8caacf4a01f45b",
+              "stem": "glibc-2.38",
+              "suffix": "tar.xz",
+              "name": "glibc",
+              "version": "2.38",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "patch -Np1 -i ../glibc-2.38-fhs-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "patch -Np1 -i ../glibc-2.38-memalign_fix-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "echo \"rootsbindir=/usr/sbin\" > configparms",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=/usr                            \\\n             --disable-werror                         \\\n             --enable-kernel=4.14                     \\\n             --enable-stack-protector=strong          \\\n             --with-headers=/usr/include              \\\n             libc_cv_slibdir=/usr/lib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "touch /etc/ld.so.conf",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed '/RTLDLIST=/s@/usr@@g' -i /usr/bin/ldd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -v ../nscd/nscd.conf /etc/nscd.conf\nmkdir -pv /var/cache/nscd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -v -Dm644 ../nscd/nscd.tmpfiles /usr/lib/tmpfiles.d/nscd.conf\ninstall -v -Dm644 ../nscd/nscd.service /usr/lib/systemd/system/nscd.service",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv /usr/lib/locale\nlocaledef -i POSIX -f UTF-8 C.UTF-8 2> /dev/null || true\nlocaledef -i cs_CZ -f UTF-8 cs_CZ.UTF-8\nlocaledef -i de_DE -f ISO-8859-1 de_DE\nlocaledef -i de_DE@euro -f ISO-8859-15 de_DE@euro\nlocaledef -i de_DE -f UTF-8 de_DE.UTF-8\nlocaledef -i el_GR -f ISO-8859-7 el_GR\nlocaledef -i en_GB -f ISO-8859-1 en_GB\nlocaledef -i en_GB -f UTF-8 en_GB.UTF-8\nlocaledef -i en_HK -f ISO-8859-1 en_HK\nlocaledef -i en_PH -f ISO-8859-1 en_PH\nlocaledef -i en_US -f ISO-8859-1 en_US\nlocaledef -i en_US -f UTF-8 en_US.UTF-8\nlocaledef -i es_ES -f ISO-8859-15 es_ES@euro\nlocaledef -i es_MX -f ISO-8859-1 es_MX\nlocaledef -i fa_IR -f UTF-8 fa_IR\nlocaledef -i fr_FR -f ISO-8859-1 fr_FR\nlocaledef -i fr_FR@euro -f ISO-8859-15 fr_FR@euro\nlocaledef -i fr_FR -f UTF-8 fr_FR.UTF-8\nlocaledef -i is_IS -f ISO-8859-1 is_IS\nlocaledef -i is_IS -f UTF-8 is_IS.UTF-8\nlocaledef -i it_IT -f ISO-8859-1 it_IT\nlocaledef -i it_IT -f ISO-8859-15 it_IT@euro\nlocaledef -i it_IT -f UTF-8 it_IT.UTF-8\nlocaledef -i ja_JP -f EUC-JP ja_JP\nlocaledef -i ja_JP -f SHIFT_JIS ja_JP.SJIS 2> /dev/null || true\nlocaledef -i ja_JP -f UTF-8 ja_JP.UTF-8\nlocaledef -i nl_NL@euro -f ISO-8859-15 nl_NL@euro\nlocaledef -i ru_RU -f KOI8-R ru_RU.KOI8-R\nlocaledef -i ru_RU -f UTF-8 ru_RU.UTF-8\nlocaledef -i se_NO -f UTF-8 se_NO.UTF-8\nlocaledef -i ta_IN -f UTF-8 ta_IN.UTF-8\nlocaledef -i tr_TR -f UTF-8 tr_TR.UTF-8\nlocaledef -i zh_CN -f GB18030 zh_CN.GB18030\nlocaledef -i zh_HK -f BIG5-HKSCS zh_HK.BIG5-HKSCS\nlocaledef -i zh_TW -f UTF-8 zh_TW.UTF-8",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make localedata/install-locales",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "localedef -i POSIX -f UTF-8 C.UTF-8 2> /dev/null || true\nlocaledef -i ja_JP -f SHIFT_JIS ja_JP.SJIS 2> /dev/null || true",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/nsswitch.conf << \"EOF\"\n# Begin /etc/nsswitch.conf\n\npasswd: files\ngroup: files\nshadow: files\n\nhosts: files dns\nnetworks: files\n\nprotocols: files\nservices: files\nethers: files\nrpc: files\n\n# End /etc/nsswitch.conf\nEOF",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "tar -xf ../../tzdata2023c.tar.gz\n\nZONEINFO=/usr/share/zoneinfo\nmkdir -pv $ZONEINFO/{posix,right}\n\nfor tz in etcetera southamerica northamerica europe africa antarctica  \\\n          asia australasia backward; do\n    zic -L /dev/null   -d $ZONEINFO       ${tz}\n    zic -L /dev/null   -d $ZONEINFO/posix ${tz}\n    zic -L leapseconds -d $ZONEINFO/right ${tz}\ndone\n\ncp -v zone.tab zone1970.tab iso3166.tab $ZONEINFO\nzic -d $ZONEINFO -p America/New_York\nunset ZONEINFO",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "tzselect",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "ln -sfv /usr/share/zoneinfo/<xxx> /etc/localtime",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/ld.so.conf << \"EOF\"\n# Begin /etc/ld.so.conf\n/usr/local/lib\n/opt/lib\n\nEOF",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "cat >> /etc/ld.so.conf << \"EOF\"\n# Add an include directory\ninclude /etc/ld.so.conf.d/*.conf\n\nEOF\nmkdir -pv /etc/ld.so.conf.d",
+                "class": "sect3",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.6. Zlib-1.2.13",
+            "package": "Zlib-1.2.13",
+            "info": {
+              "full": "zlib-1.2.13.tar.xz",
+              "md5": "7d9fc1d78ae2fa3e84fe98b77d006c63",
+              "stem": "zlib-1.2.13",
+              "suffix": "tar.xz",
+              "name": "zlib",
+              "version": "1.2.13",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -fv /usr/lib/libz.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.7. Bzip2-1.0.8",
+            "package": "Bzip2-1.0.8",
+            "info": {
+              "full": "bzip2-1.0.8.tar.gz",
+              "md5": "67e051268d0c475ea773822f7500d0e5",
+              "stem": "bzip2-1.0.8",
+              "suffix": "tar.gz",
+              "name": "bzip2",
+              "version": "1.0.8",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "patch -Np1 -i ../bzip2-1.0.8-install_docs-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed -i 's@\\(ln -s -f \\)$(PREFIX)/bin/@\\1@' Makefile",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed -i \"s@(PREFIX)/man@(PREFIX)/share/man@g\" Makefile",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -f Makefile-libbz2_so\nmake clean",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make PREFIX=/usr install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -av libbz2.so.* /usr/lib\nln -sv libbz2.so.1.0.8 /usr/lib/libbz2.so",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -v bzip2-shared /usr/bin/bzip2\nfor i in /usr/bin/{bzcat,bunzip2}; do\n  ln -sfv bzip2 $i\ndone",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -fv /usr/lib/libbz2.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.8. Xz-5.4.4",
+            "package": "Xz-5.4.4",
+            "info": {
+              "full": "xz-5.4.4.tar.xz",
+              "md5": "d83d6f64a64f88759e312b8a38c3add6",
+              "stem": "xz-5.4.4",
+              "suffix": "tar.xz",
+              "name": "xz",
+              "version": "5.4.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --docdir=/usr/share/doc/xz-5.4.4",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.9. Zstd-1.5.5",
+            "package": "Zstd-1.5.5",
+            "info": {
+              "full": "zstd-1.5.5.tar.gz",
+              "md5": "63251602329a106220e0a5ad26ba656f",
+              "stem": "zstd-1.5.5",
+              "suffix": "tar.gz",
+              "name": "zstd",
+              "version": "1.5.5",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "make prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make prefix=/usr install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v /usr/lib/libzstd.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.10. File-5.45",
+            "package": "File-5.45",
+            "info": {
+              "full": "file-5.45.tar.gz",
+              "md5": "26b2a96d4e3a8938827a1e572afd527a",
+              "stem": "file-5.45",
+              "suffix": "tar.gz",
+              "name": "file",
+              "version": "5.45",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.11. Readline-8.2",
+            "package": "Readline-8.2",
+            "info": {
+              "full": "readline-8.2.tar.gz",
+              "md5": "4aa1b31be779e6b84f9a96cb66bc50f6",
+              "stem": "readline-8.2",
+              "suffix": "tar.gz",
+              "name": "readline",
+              "version": "8.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i '/MV.*old/d' Makefile.in\nsed -i '/{OLDSUFF}/c:' support/shlib-install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "patch -Np1 -i ../readline-8.2-upstream_fix-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --with-curses    \\\n            --docdir=/usr/share/doc/readline-8.2",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make SHLIB_LIBS=\"-lncursesw\"",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make SHLIB_LIBS=\"-lncursesw\" install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -v -m644 doc/*.{ps,pdf,html,dvi} /usr/share/doc/readline-8.2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.12. M4-1.4.19",
+            "package": "M4-1.4.19",
+            "info": {
+              "full": "m4-1.4.19.tar.xz",
+              "md5": "0d90823e1426f1da2fd872df0311298d",
+              "stem": "m4-1.4.19",
+              "suffix": "tar.xz",
+              "name": "m4",
+              "version": "1.4.19",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.13. Bc-6.6.0",
+            "package": "Bc-6.6.0",
+            "info": {
+              "full": "bc-6.6.0.tar.xz",
+              "md5": "a148cbaaf8ff813b7289a00539e74a5f",
+              "stem": "bc-6.6.0",
+              "suffix": "tar.xz",
+              "name": "bc",
+              "version": "6.6.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "CC=gcc ./configure --prefix=/usr -G -O3 -r",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.14. Flex-2.6.4",
+            "package": "Flex-2.6.4",
+            "info": {
+              "full": "flex-2.6.4.tar.gz",
+              "md5": "2882e3179748cc9f9c23ec593d6adc8d",
+              "stem": "flex-2.6.4",
+              "suffix": "tar.gz",
+              "name": "flex",
+              "version": "2.6.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr \\\n            --docdir=/usr/share/doc/flex-2.6.4 \\\n            --disable-static",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv flex   /usr/bin/lex\nln -sv flex.1 /usr/share/man/man1/lex.1",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.15. Tcl-8.6.13",
+            "package": "Tcl-8.6.13",
+            "info": {
+              "full": "tcl8.6.13-src.tar.gz",
+              "md5": "0e4358aade2f5db8a8b6f2f6d9481ec2",
+              "stem": "tcl8.6.13-src",
+              "suffix": "tar.gz",
+              "name": "tcl",
+              "version": "8.6.13",
+              "extra": "src"
+            },
+            "userinputs": [
+              {
+                "command": "SRCDIR=$(pwd)\ncd unix\n./configure --prefix=/usr           \\\n            --mandir=/usr/share/man",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make\n\nsed -e \"s|$SRCDIR/unix|/usr/lib|\" \\\n    -e \"s|$SRCDIR|/usr/include|\"  \\\n    -i tclConfig.sh\n\nsed -e \"s|$SRCDIR/unix/pkgs/tdbc1.1.5|/usr/lib/tdbc1.1.5|\" \\\n    -e \"s|$SRCDIR/pkgs/tdbc1.1.5/generic|/usr/include|\"    \\\n    -e \"s|$SRCDIR/pkgs/tdbc1.1.5/library|/usr/lib/tcl8.6|\" \\\n    -e \"s|$SRCDIR/pkgs/tdbc1.1.5|/usr/include|\"            \\\n    -i pkgs/tdbc1.1.5/tdbcConfig.sh\n\nsed -e \"s|$SRCDIR/unix/pkgs/itcl4.2.3|/usr/lib/itcl4.2.3|\" \\\n    -e \"s|$SRCDIR/pkgs/itcl4.2.3/generic|/usr/include|\"    \\\n    -e \"s|$SRCDIR/pkgs/itcl4.2.3|/usr/include|\"            \\\n    -i pkgs/itcl4.2.3/itclConfig.sh\n\nunset SRCDIR",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chmod -v u+w /usr/lib/libtcl8.6.so",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install-private-headers",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sfv tclsh8.6 /usr/bin/tclsh",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mv /usr/share/man/man3/{Thread,Tcl_Thread}.3",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cd ..\ntar -xf ../tcl8.6.13-html.tar.gz --strip-components=1\nmkdir -v -p /usr/share/doc/tcl-8.6.13\ncp -v -r  ./html/* /usr/share/doc/tcl-8.6.13",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.16. Expect-5.45.4",
+            "package": "Expect-5.45.4",
+            "info": {
+              "full": "expect5.45.4.tar.gz",
+              "md5": "00fce8de158422f5ccd2666512329bd2",
+              "stem": "expect5.45.4",
+              "suffix": "tar.gz",
+              "name": "expect",
+              "version": "5.45.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr           \\\n            --with-tcl=/usr/lib     \\\n            --enable-shared         \\\n            --mandir=/usr/share/man \\\n            --with-tclinclude=/usr/include",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nln -svf expect5.45.4/libexpect5.45.4.so /usr/lib",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.17. DejaGNU-1.6.3",
+            "package": "DejaGNU-1.6.3",
+            "info": {
+              "full": "dejagnu-1.6.3.tar.gz",
+              "md5": "68c5208c58236eba447d7d6d1326b821",
+              "stem": "dejagnu-1.6.3",
+              "suffix": "tar.gz",
+              "name": "dejagnu",
+              "version": "1.6.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=/usr\nmakeinfo --html --no-split -o doc/dejagnu.html ../doc/dejagnu.texi\nmakeinfo --plaintext       -o doc/dejagnu.txt  ../doc/dejagnu.texi",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install\ninstall -v -dm755  /usr/share/doc/dejagnu-1.6.3\ninstall -v -m644   doc/dejagnu.{html,txt} /usr/share/doc/dejagnu-1.6.3",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              }
+            ]
+          },
+          {
+            "title": "8.18. Binutils-2.41",
+            "package": "Binutils-2.41",
+            "info": {
+              "full": "binutils-2.41.tar.xz",
+              "md5": "256d7e0ad998e423030c84483a7c1e30",
+              "stem": "binutils-2.41",
+              "suffix": "tar.xz",
+              "name": "binutils",
+              "version": "2.41",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=/usr       \\\n             --sysconfdir=/etc   \\\n             --enable-gold       \\\n             --enable-ld=default \\\n             --enable-plugins    \\\n             --enable-shared     \\\n             --disable-werror    \\\n             --enable-64-bit-bfd \\\n             --with-system-zlib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make tooldir=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -k check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "grep '^FAIL:' $(find -name '*.log')",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make tooldir=/usr install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -fv /usr/lib/lib{bfd,ctf,ctf-nobfd,gprofng,opcodes,sframe}.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.19. GMP-6.3.0",
+            "package": "GMP-6.3.0",
+            "info": {
+              "full": "gmp-6.3.0.tar.xz",
+              "md5": "956dc04e864001a9c22429f761f2c283",
+              "stem": "gmp-6.3.0",
+              "suffix": "tar.xz",
+              "name": "gmp",
+              "version": "6.3.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "ABI=32 ./configure ...",
+                "class": "admon note",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr    \\\n            --enable-cxx     \\\n            --disable-static \\\n            --docdir=/usr/share/doc/gmp-6.3.0",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make\nmake html",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check 2>&1 | tee gmp-check-log",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "awk '/# PASS:/{total+=$3} ; END{print total}' gmp-check-log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install\nmake install-html",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.20. MPFR-4.2.0",
+            "package": "MPFR-4.2.0",
+            "info": {
+              "full": "mpfr-4.2.0.tar.xz",
+              "md5": "a25091f337f25830c16d2054d74b5af7",
+              "stem": "mpfr-4.2.0",
+              "suffix": "tar.xz",
+              "name": "mpfr",
+              "version": "4.2.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -e 's/+01,234,567/+1,234,567 /' \\\n    -e 's/13.10Pd/13Pd/'            \\\n    -i tests/tsprintf.c",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr        \\\n            --disable-static     \\\n            --enable-thread-safe \\\n            --docdir=/usr/share/doc/mpfr-4.2.0",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make\nmake html",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nmake install-html",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.21. MPC-1.3.1",
+            "package": "MPC-1.3.1",
+            "info": {
+              "full": "mpc-1.3.1.tar.gz",
+              "md5": "5c9bc658c9fd0f940e8e3e0f09530c62",
+              "stem": "mpc-1.3.1",
+              "suffix": "tar.gz",
+              "name": "mpc",
+              "version": "1.3.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --docdir=/usr/share/doc/mpc-1.3.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make\nmake html",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nmake install-html",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.22. Attr-2.5.1",
+            "package": "Attr-2.5.1",
+            "info": {
+              "full": "attr-2.5.1.tar.gz",
+              "md5": "ac1c5a7a084f0f83b8cace34211f64d8",
+              "stem": "attr-2.5.1",
+              "suffix": "tar.gz",
+              "name": "attr",
+              "version": "2.5.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr     \\\n            --disable-static  \\\n            --sysconfdir=/etc \\\n            --docdir=/usr/share/doc/attr-2.5.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.23. Acl-2.3.1",
+            "package": "Acl-2.3.1",
+            "info": {
+              "full": "acl-2.3.1.tar.xz",
+              "md5": "95ce715fe09acca7c12d3306d0f076b2",
+              "stem": "acl-2.3.1",
+              "suffix": "tar.xz",
+              "name": "acl",
+              "version": "2.3.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr         \\\n            --disable-static      \\\n            --docdir=/usr/share/doc/acl-2.3.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.24. Libcap-2.69",
+            "package": "Libcap-2.69",
+            "info": {
+              "full": "libcap-2.69.tar.xz",
+              "md5": "4667bacb837f9ac4adb4a1a0266f4b65",
+              "stem": "libcap-2.69",
+              "suffix": "tar.xz",
+              "name": "libcap",
+              "version": "2.69",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i '/install -m.*STA/d' libcap/Makefile",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make prefix=/usr lib=lib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make prefix=/usr lib=lib install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.25. Libxcrypt-4.4.36",
+            "package": "Libxcrypt-4.4.36",
+            "info": {
+              "full": "libxcrypt-4.4.36.tar.xz",
+              "md5": "b84cd4104e08c975063ec6c4d0372446",
+              "stem": "libxcrypt-4.4.36",
+              "suffix": "tar.xz",
+              "name": "libxcrypt",
+              "version": "4.4.36",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                \\\n            --enable-hashes=strong,glibc \\\n            --enable-obsolete-api=no     \\\n            --disable-static             \\\n            --disable-failure-tokens",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make distclean\n./configure --prefix=/usr                \\\n            --enable-hashes=strong,glibc \\\n            --enable-obsolete-api=glibc  \\\n            --disable-static             \\\n            --disable-failure-tokens\nmake\ncp -av .libs/libcrypt.so.1* /usr/lib",
+                "class": "admon note",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.26. Shadow-4.13",
+            "package": "Shadow-4.13",
+            "info": {
+              "full": "shadow-4.13.tar.xz",
+              "md5": "b1ab01b5462ddcf43588374d57bec123",
+              "stem": "shadow-4.13",
+              "suffix": "tar.xz",
+              "name": "shadow",
+              "version": "4.13",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i 's/groups$(EXEEXT) //' src/Makefile.in\nfind man -name Makefile.in -exec sed -i 's/groups\\.1 / /'   {} \\;\nfind man -name Makefile.in -exec sed -i 's/getspnam\\.3 / /' {} \\;\nfind man -name Makefile.in -exec sed -i 's/passwd\\.5 / /'   {} \\;",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed -e 's:#ENCRYPT_METHOD DES:ENCRYPT_METHOD YESCRYPT:' \\\n    -e 's:/var/spool/mail:/var/mail:'                   \\\n    -e '/PATH=/{s@/sbin:@@;s@/bin:@@}'                  \\\n    -i etc/login.defs",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed -i 's:DICTPATH.*:DICTPATH\\t/lib/cracklib/pw_dict:' etc/login.defs",
+                "class": "admon note",
+                "check": false
+              },
+              {
+                "command": "touch /usr/bin/passwd\n./configure --sysconfdir=/etc   \\\n            --disable-static    \\\n            --with-{b,yes}crypt \\\n            --with-group-name-max-length=32",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make exec_prefix=/usr install\nmake -C man install-man",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pwconv",
+                "class": "configuration",
+                "check": false
+              },
+              {
+                "command": "grpconv",
+                "class": "configuration",
+                "check": false
+              },
+              {
+                "command": "mkdir -p /etc/default\nuseradd -D --gid 999",
+                "class": "configuration",
+                "check": false
+              },
+              {
+                "command": "sed -i '/MAIL/s/yes/no/' /etc/default/useradd",
+                "class": "variablelist",
+                "check": false
+              },
+              {
+                "command": "passwd root",
+                "class": "configuration",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.27. GCC-13.2.0",
+            "package": "GCC-13.2.0",
+            "info": {
+              "full": "gcc-13.2.0.tar.xz",
+              "md5": "e0e48554cc6e4f261d55ddee9ab69075",
+              "stem": "gcc-13.2.0",
+              "suffix": "tar.xz",
+              "name": "gcc",
+              "version": "13.2.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "case $(uname -m) in\n  x86_64)\n    sed -e '/m64=/s/lib64/lib/' \\\n        -i.orig gcc/config/i386/t-linux64\n  ;;\nesac",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=/usr            \\\n             LD=ld                    \\\n             --enable-languages=c,c++ \\\n             --enable-default-pie     \\\n             --enable-default-ssp     \\\n             --disable-multilib       \\\n             --disable-bootstrap      \\\n             --disable-fixincludes    \\\n             --with-system-zlib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ulimit -s 32768",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"PATH=$PATH make -k check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "../contrib/test_summary",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -v -R root:root \\\n    /usr/lib/gcc/$(gcc -dumpmachine)/13.2.0/include{,-fixed}",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -svr /usr/bin/cpp /usr/lib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv gcc.1 /usr/share/man/man1/cc.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sfv ../../libexec/gcc/$(gcc -dumpmachine)/13.2.0/liblto_plugin.so \\\n        /usr/lib/bfd-plugins/",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "echo 'int main(){}' > dummy.c\ncc dummy.c -v -Wl,--verbose &> dummy.log\nreadelf -l a.out | grep ': /lib'",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "grep -E -o '/usr/lib.*/S?crt[1in].*succeeded' dummy.log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "grep -B4 '^ /usr/include' dummy.log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "grep 'SEARCH.*/usr/lib' dummy.log |sed 's|; |\\n|g'",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "grep \"/lib.*/libc.so.6 \" dummy.log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "grep found dummy.log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -v dummy.c a.out dummy.log",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv /usr/share/gdb/auto-load/usr/lib\nmv -v /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.28. Pkgconf-2.0.1",
+            "package": "Pkgconf-2.0.1",
+            "info": {
+              "full": "pkgconf-2.0.1.tar.xz",
+              "md5": "efc1318f368bb592aba6ebb18d9ff254",
+              "stem": "pkgconf-2.0.1",
+              "suffix": "tar.xz",
+              "name": "pkgconf",
+              "version": "2.0.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr              \\\n            --disable-static           \\\n            --docdir=/usr/share/doc/pkgconf-2.0.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv pkgconf   /usr/bin/pkg-config\nln -sv pkgconf.1 /usr/share/man/man1/pkg-config.1",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.29. Ncurses-6.4",
+            "package": "Ncurses-6.4",
+            "info": {
+              "full": "ncurses-6.4.tar.gz",
+              "md5": "5a62487b5d4ac6b132fe2bf9f8fad29b",
+              "stem": "ncurses-6.4",
+              "suffix": "tar.gz",
+              "name": "ncurses",
+              "version": "6.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr           \\\n            --mandir=/usr/share/man \\\n            --with-shared           \\\n            --without-debug         \\\n            --without-normal        \\\n            --with-cxx-shared       \\\n            --enable-pc-files       \\\n            --enable-widec          \\\n            --with-pkg-config-libdir=/usr/lib/pkgconfig",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make DESTDIR=$PWD/dest install\ninstall -vm755 dest/usr/lib/libncursesw.so.6.4 /usr/lib\nrm -v  dest/usr/lib/libncursesw.so.6.4\ncp -av dest/* /",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "for lib in ncurses form panel menu ; do\n    rm -vf                    /usr/lib/lib${lib}.so\n    echo \"INPUT(-l${lib}w)\" > /usr/lib/lib${lib}.so\n    ln -sfv ${lib}w.pc        /usr/lib/pkgconfig/${lib}.pc\ndone",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -vf                     /usr/lib/libcursesw.so\necho \"INPUT(-lncursesw)\" > /usr/lib/libcursesw.so\nln -sfv libncurses.so      /usr/lib/libcurses.so",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -v -R doc -T /usr/share/doc/ncurses-6.4",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make distclean\n./configure --prefix=/usr    \\\n            --with-shared    \\\n            --without-normal \\\n            --without-debug  \\\n            --without-cxx-binding \\\n            --with-abi-version=5\nmake sources libs\ncp -av lib/lib*.so.5* /usr/lib",
+                "class": "admon note",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.30. Sed-4.9",
+            "package": "Sed-4.9",
+            "info": {
+              "full": "sed-4.9.tar.xz",
+              "md5": "6aac9b2dbafcd5b7a67a8a9bcb8036c3",
+              "stem": "sed-4.9",
+              "suffix": "tar.xz",
+              "name": "sed",
+              "version": "4.9",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make\nmake html",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"PATH=$PATH make check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\ninstall -d -m755           /usr/share/doc/sed-4.9\ninstall -m644 doc/sed.html /usr/share/doc/sed-4.9",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.31. Psmisc-23.6",
+            "package": "Psmisc-23.6",
+            "info": {
+              "full": "psmisc-23.6.tar.xz",
+              "md5": "ed3206da1184ce9e82d607dc56c52633",
+              "stem": "psmisc-23.6",
+              "suffix": "tar.xz",
+              "name": "psmisc",
+              "version": "23.6",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.32. Gettext-0.22",
+            "package": "Gettext-0.22",
+            "info": {
+              "full": "gettext-0.22.tar.xz",
+              "md5": "db2f3daf34fd5b85ab1a56f9033e42d1",
+              "stem": "gettext-0.22",
+              "suffix": "tar.xz",
+              "name": "gettext",
+              "version": "0.22",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --docdir=/usr/share/doc/gettext-0.22",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nchmod -v 0755 /usr/lib/preloadable_libintl.so",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.33. Bison-3.8.2",
+            "package": "Bison-3.8.2",
+            "info": {
+              "full": "bison-3.8.2.tar.xz",
+              "md5": "c28f119f405a2304ff0a7ccdcc629713",
+              "stem": "bison-3.8.2",
+              "suffix": "tar.xz",
+              "name": "bison",
+              "version": "3.8.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --docdir=/usr/share/doc/bison-3.8.2",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.34. Grep-3.11",
+            "package": "Grep-3.11",
+            "info": {
+              "full": "grep-3.11.tar.xz",
+              "md5": "7c9bbd74492131245f7cdb291fa142c0",
+              "stem": "grep-3.11",
+              "suffix": "tar.xz",
+              "name": "grep",
+              "version": "3.11",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i \"s/echo/#echo/\" src/egrep.sh",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.35. Bash-5.2.15",
+            "package": "Bash-5.2.15",
+            "info": {
+              "full": "bash-5.2.15.tar.gz",
+              "md5": "4281bb43497f3905a308430a8d6a30a5",
+              "stem": "bash-5.2.15",
+              "suffix": "tar.gz",
+              "name": "bash",
+              "version": "5.2.15",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr             \\\n            --without-bash-malloc     \\\n            --with-installed-readline \\\n            --docdir=/usr/share/doc/bash-5.2.15",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "su -s /usr/bin/expect tester << EOF\nset timeout -1\nspawn make tests\nexpect eof\nlassign [wait] _ _ _ value\nexit $value\nEOF",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "exec /usr/bin/bash --login",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.36. Libtool-2.4.7",
+            "package": "Libtool-2.4.7",
+            "info": {
+              "full": "libtool-2.4.7.tar.xz",
+              "md5": "2fc0b6ddcd66a89ed6e45db28fa44232",
+              "stem": "libtool-2.4.7",
+              "suffix": "tar.xz",
+              "name": "libtool",
+              "version": "2.4.7",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -k check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -fv /usr/lib/libltdl.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.37. GDBM-1.23",
+            "package": "GDBM-1.23",
+            "info": {
+              "full": "gdbm-1.23.tar.gz",
+              "md5": "8551961e36bf8c70b7500d255d3658ec",
+              "stem": "gdbm-1.23",
+              "suffix": "tar.gz",
+              "name": "gdbm",
+              "version": "1.23",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --enable-libgdbm-compat",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.38. Gperf-3.1",
+            "package": "Gperf-3.1",
+            "info": {
+              "full": "gperf-3.1.tar.gz",
+              "md5": "9e251c0a618ad0824b51117d5d9db87e",
+              "stem": "gperf-3.1",
+              "suffix": "tar.gz",
+              "name": "gperf",
+              "version": "3.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --docdir=/usr/share/doc/gperf-3.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -j1 check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.39. Expat-2.5.0",
+            "package": "Expat-2.5.0",
+            "info": {
+              "full": "expat-2.5.0.tar.xz",
+              "md5": "ac6677b6d1b95d209ab697ce8b688704",
+              "stem": "expat-2.5.0",
+              "suffix": "tar.xz",
+              "name": "expat",
+              "version": "2.5.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr    \\\n            --disable-static \\\n            --docdir=/usr/share/doc/expat-2.5.0",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -v -m644 doc/*.{html,css} /usr/share/doc/expat-2.5.0",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.40. Inetutils-2.4",
+            "package": "Inetutils-2.4",
+            "info": {
+              "full": "inetutils-2.4.tar.xz",
+              "md5": "319d65bb5a6f1847c4810651f3b4ba74",
+              "stem": "inetutils-2.4",
+              "suffix": "tar.xz",
+              "name": "inetutils",
+              "version": "2.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr        \\\n            --bindir=/usr/bin    \\\n            --localstatedir=/var \\\n            --disable-logger     \\\n            --disable-whois      \\\n            --disable-rcp        \\\n            --disable-rexec      \\\n            --disable-rlogin     \\\n            --disable-rsh        \\\n            --disable-servers",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mv -v /usr/{,s}bin/ifconfig",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.41. Less-643",
+            "package": "Less-643",
+            "info": {
+              "full": "less-643.tar.gz",
+              "md5": "cf05e2546a3729492b944b4874dd43dd",
+              "stem": "less-643",
+              "suffix": "tar.gz",
+              "name": "less",
+              "version": "643",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --sysconfdir=/etc",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.42. Perl-5.38.0",
+            "package": "Perl-5.38.0",
+            "info": {
+              "full": "perl-5.38.0.tar.xz",
+              "md5": "e1c8aaec897dd386c741f97eef9f2e87",
+              "stem": "perl-5.38.0",
+              "suffix": "tar.xz",
+              "name": "perl",
+              "version": "5.38.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "export BUILD_ZLIB=False\nexport BUILD_BZIP2=0",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sh Configure -des                                         \\\n             -Dprefix=/usr                                \\\n             -Dvendorprefix=/usr                          \\\n             -Dprivlib=/usr/lib/perl5/5.38/core_perl      \\\n             -Darchlib=/usr/lib/perl5/5.38/core_perl      \\\n             -Dsitelib=/usr/lib/perl5/5.38/site_perl      \\\n             -Dsitearch=/usr/lib/perl5/5.38/site_perl     \\\n             -Dvendorlib=/usr/lib/perl5/5.38/vendor_perl  \\\n             -Dvendorarch=/usr/lib/perl5/5.38/vendor_perl \\\n             -Dman1dir=/usr/share/man/man1                \\\n             -Dman3dir=/usr/share/man/man3                \\\n             -Dpager=\"/usr/bin/less -isR\"                 \\\n             -Duseshrplib                                 \\\n             -Dusethreads",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nunset BUILD_ZLIB BUILD_BZIP2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.43. XML::Parser-2.46",
+            "package": "XML::Parser-2.46",
+            "info": {
+              "full": "XML-Parser-2.46.tar.gz",
+              "md5": "80bb18a8e6240fcf7ec2f7b57601c170",
+              "stem": "XML-Parser-2.46",
+              "suffix": "tar.gz",
+              "name": "XML-Parser",
+              "version": "2.46",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "perl Makefile.PL",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.44. Intltool-0.51.0",
+            "package": "Intltool-0.51.0",
+            "info": {
+              "full": "intltool-0.51.0.tar.gz",
+              "md5": "12e517cac2b57a0121cda351570f1e63",
+              "stem": "intltool-0.51.0",
+              "suffix": "tar.gz",
+              "name": "intltool",
+              "version": "0.51.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i 's:\\\\\\${:\\\\\\$\\\\{:' intltool-update.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\ninstall -v -Dm644 doc/I18N-HOWTO /usr/share/doc/intltool-0.51.0/I18N-HOWTO",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.45. Autoconf-2.71",
+            "package": "Autoconf-2.71",
+            "info": {
+              "full": "autoconf-2.71.tar.xz",
+              "md5": "12cfa1687ffa2606337efe1a64416106",
+              "stem": "autoconf-2.71",
+              "suffix": "tar.xz",
+              "name": "autoconf",
+              "version": "2.71",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -e 's/SECONDS|/&SHLVL|/'               \\\n    -e '/BASH_ARGV=/a\\        /^SHLVL=/ d' \\\n    -i.orig tests/local.at",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.46. Automake-1.16.5",
+            "package": "Automake-1.16.5",
+            "info": {
+              "full": "automake-1.16.5.tar.xz",
+              "md5": "4017e96f89fca45ca946f1c5db6be714",
+              "stem": "automake-1.16.5",
+              "suffix": "tar.xz",
+              "name": "automake",
+              "version": "1.16.5",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --docdir=/usr/share/doc/automake-1.16.5",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -j4 check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.47. OpenSSL-3.1.2",
+            "package": "OpenSSL-3.1.2",
+            "info": {
+              "full": "openssl-3.1.2.tar.gz",
+              "md5": "1d7861f969505e67b8677e205afd9ff4",
+              "stem": "openssl-3.1.2",
+              "suffix": "tar.gz",
+              "name": "openssl",
+              "version": "3.1.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./config --prefix=/usr         \\\n         --openssldir=/etc/ssl \\\n         --libdir=lib          \\\n         shared                \\\n         zlib-dynamic",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make test",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "sed -i '/INSTALL_LIBS/s/libcrypto.a libssl.a//' Makefile\nmake MANSUFFIX=ssl install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mv -v /usr/share/doc/openssl /usr/share/doc/openssl-3.1.2",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -vfr doc/* /usr/share/doc/openssl-3.1.2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.48. Kmod-30",
+            "package": "Kmod-30",
+            "info": {
+              "full": "kmod-30.tar.xz",
+              "md5": "85202f0740a75eb52f2163c776f9b564",
+              "stem": "kmod-30",
+              "suffix": "tar.xz",
+              "name": "kmod",
+              "version": "30",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr          \\\n            --sysconfdir=/etc      \\\n            --with-openssl         \\\n            --with-xz              \\\n            --with-zstd            \\\n            --with-zlib",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install\n\nfor target in depmod insmod modinfo modprobe rmmod; do\n  ln -sfv ../bin/kmod /usr/sbin/$target\ndone\n\nln -sfv kmod /usr/bin/lsmod",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.49. Libelf from Elfutils-0.189",
+            "package": "Libelf",
+            "info": {
+              "full": "elfutils-0.189.tar.bz2",
+              "md5": "5cfaa711a90cb670406cd495aeaa6030",
+              "stem": "elfutils-0.189",
+              "suffix": "tar.bz2",
+              "name": "elfutils",
+              "version": "0.189",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                \\\n            --disable-debuginfod         \\\n            --enable-libdebuginfod=dummy",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make -C libelf install\ninstall -vm644 config/libelf.pc /usr/lib/pkgconfig\nrm /usr/lib/libelf.a",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.50. Libffi-3.4.4",
+            "package": "Libffi-3.4.4",
+            "info": {
+              "full": "libffi-3.4.4.tar.gz",
+              "md5": "0da1a5ed7786ac12dcbaf0d499d8a049",
+              "stem": "libffi-3.4.4",
+              "suffix": "tar.gz",
+              "name": "libffi",
+              "version": "3.4.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr          \\\n            --disable-static       \\\n            --with-gcc-arch=native",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.51. Python-3.11.4",
+            "package": "Python-3.11.4",
+            "info": {
+              "full": "Python-3.11.4.tar.xz",
+              "md5": "fb7f7eae520285788449d569e45b6718",
+              "stem": "Python-3.11.4",
+              "suffix": "tar.xz",
+              "name": "Python",
+              "version": "3.11.4",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr        \\\n            --enable-shared      \\\n            --with-system-expat  \\\n            --with-system-ffi    \\\n            --enable-optimizations",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/pip.conf << EOF\n[global]\nroot-user-action = ignore\ndisable-pip-version-check = true\nEOF",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -v -dm755 /usr/share/doc/python-3.11.4/html\n\ntar --strip-components=1  \\\n    --no-same-owner       \\\n    --no-same-permissions \\\n    -C /usr/share/doc/python-3.11.4/html \\\n    -xvf ../python-3.11.4-docs-html.tar.bz2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.52. Flit-Core-3.9.0",
+            "package": "Flit-Core-3.9.0",
+            "info": {
+              "full": "flit_core-3.9.0.tar.gz",
+              "md5": "3bc52f1952b9a78361114147da63c35b",
+              "stem": "flit_core-3.9.0",
+              "suffix": "tar.gz",
+              "name": "flit_core",
+              "version": "3.9.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "pip3 wheel -w dist --no-build-isolation --no-deps $PWD",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pip3 install --no-index --no-user --find-links dist flit_core",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.53. Wheel-0.41.1",
+            "package": "Wheel-0.41.1",
+            "info": {
+              "full": "wheel-0.41.1.tar.gz",
+              "md5": "181cb3f4d8ed340c904a0e1c416d341d",
+              "stem": "wheel-0.41.1",
+              "suffix": "tar.gz",
+              "name": "wheel",
+              "version": "0.41.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "pip3 wheel -w dist --no-build-isolation --no-deps $PWD",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pip3 install --no-index --find-links=dist wheel",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.54. Ninja-1.11.1",
+            "package": "Ninja-1.11.1",
+            "info": {
+              "full": "ninja-1.11.1.tar.gz",
+              "md5": "32151c08211d7ca3c1d832064f6939b0",
+              "stem": "ninja-1.11.1",
+              "suffix": "tar.gz",
+              "name": "ninja",
+              "version": "1.11.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i '/int Guess/a \\\n  int   j = 0;\\\n  char* jobs = getenv( \"NINJAJOBS\" );\\\n  if ( jobs != NULL ) j = atoi( jobs );\\\n  if ( j > 0 ) return j;\\\n' src/ninja.cc",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "python3 configure.py --bootstrap",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./ninja ninja_test\n./ninja_test --gtest_filter=-SubprocessTest.SetWithLots",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -vm755 ninja /usr/bin/\ninstall -vDm644 misc/bash-completion /usr/share/bash-completion/completions/ninja\ninstall -vDm644 misc/zsh-completion  /usr/share/zsh/site-functions/_ninja",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.55. Meson-1.2.1",
+            "package": "Meson-1.2.1",
+            "info": {
+              "full": "meson-1.2.1.tar.gz",
+              "md5": "e3cc846536189aacd7d01858a45ca9af",
+              "stem": "meson-1.2.1",
+              "suffix": "tar.gz",
+              "name": "meson",
+              "version": "1.2.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "pip3 wheel -w dist --no-build-isolation --no-deps $PWD",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pip3 install --no-index --find-links dist meson\ninstall -vDm644 data/shell-completions/bash/meson /usr/share/bash-completion/completions/meson\ninstall -vDm644 data/shell-completions/zsh/_meson /usr/share/zsh/site-functions/_meson",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.56. Coreutils-9.3",
+            "package": "Coreutils-9.3",
+            "info": {
+              "full": "coreutils-9.3.tar.xz",
+              "md5": "040b4b7acaf89499834bfc79609af29f",
+              "stem": "coreutils-9.3",
+              "suffix": "tar.xz",
+              "name": "coreutils",
+              "version": "9.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "patch -Np1 -i ../coreutils-9.3-i18n-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "autoreconf -fiv\nFORCE_UNSAFE_CONFIGURE=1 ./configure \\\n            --prefix=/usr            \\\n            --enable-no-install-program=kill,uptime",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make NON_ROOT_USERNAME=tester check-root",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "groupadd -g 102 dummy -U tester",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "chown -Rv tester .",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "su tester -c \"PATH=$PATH make RUN_EXPENSIVE_TESTS=yes check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "groupdel dummy",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mv -v /usr/bin/chroot /usr/sbin\nmv -v /usr/share/man/man1/chroot.1 /usr/share/man/man8/chroot.8\nsed -i 's/\"1\"/\"8\"/' /usr/share/man/man8/chroot.8",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.57. Check-0.15.2",
+            "package": "Check-0.15.2",
+            "info": {
+              "full": "check-0.15.2.tar.gz",
+              "md5": "50fcafcecde5a380415b12e9c574e0b2",
+              "stem": "check-0.15.2",
+              "suffix": "tar.gz",
+              "name": "check",
+              "version": "0.15.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --disable-static",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make docdir=/usr/share/doc/check-0.15.2 install",
+                "class": "installation",
+                "check": true
+              }
+            ]
+          },
+          {
+            "title": "8.58. Diffutils-3.10",
+            "package": "Diffutils-3.10",
+            "info": {
+              "full": "diffutils-3.10.tar.xz",
+              "md5": "2745c50f6f4e395e7b7d52f902d075bf",
+              "stem": "diffutils-3.10",
+              "suffix": "tar.xz",
+              "name": "diffutils",
+              "version": "3.10",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.59. Gawk-5.2.2",
+            "package": "Gawk-5.2.2",
+            "info": {
+              "full": "gawk-5.2.2.tar.xz",
+              "md5": "d63b4de2c722cbd9b8cc8e6f14d78a1e",
+              "stem": "gawk-5.2.2",
+              "suffix": "tar.xz",
+              "name": "gawk",
+              "version": "5.2.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i 's/extras//' Makefile.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"PATH=$PATH make check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make LN='ln -f' install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv gawk.1 /usr/share/man/man1/awk.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv                                   /usr/share/doc/gawk-5.2.2\ncp    -v doc/{awkforai.txt,*.{eps,pdf,jpg}} /usr/share/doc/gawk-5.2.2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.60. Findutils-4.9.0",
+            "package": "Findutils-4.9.0",
+            "info": {
+              "full": "findutils-4.9.0.tar.xz",
+              "md5": "4a4a547e888a944b2f3af31d789a1137",
+              "stem": "findutils-4.9.0",
+              "suffix": "tar.xz",
+              "name": "findutils",
+              "version": "4.9.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr --localstatedir=/var/lib/locate",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"PATH=$PATH make check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.61. Groff-1.23.0",
+            "package": "Groff-1.23.0",
+            "info": {
+              "full": "groff-1.23.0.tar.gz",
+              "md5": "5e4f40315a22bb8a158748e7d5094c7d",
+              "stem": "groff-1.23.0",
+              "suffix": "tar.gz",
+              "name": "groff",
+              "version": "1.23.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "PAGE=<paper_size> ./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.62. GRUB-2.06",
+            "package": "GRUB-2.06",
+            "info": {
+              "full": "grub-2.06.tar.xz",
+              "md5": "cf0fd928b1e5479c8108ee52cb114363",
+              "stem": "grub-2.06",
+              "suffix": "tar.xz",
+              "name": "grub",
+              "version": "2.06",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "unset {C,CPP,CXX,LD}FLAGS",
+                "class": "admon warning",
+                "check": false
+              },
+              {
+                "command": "patch -Np1 -i ../grub-2.06-upstream_fixes-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr          \\\n            --sysconfdir=/etc      \\\n            --disable-efiemu       \\\n            --disable-werror",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make install\nmv -v /etc/bash_completion.d/grub /usr/share/bash-completion/completions",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.63. Gzip-1.12",
+            "package": "Gzip-1.12",
+            "info": {
+              "full": "gzip-1.12.tar.xz",
+              "md5": "9608e4ac5f061b2a6479dc44e917a5db",
+              "stem": "gzip-1.12",
+              "suffix": "tar.xz",
+              "name": "gzip",
+              "version": "1.12",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.64. IPRoute2-6.4.0",
+            "package": "IPRoute2-6.4.0",
+            "info": {
+              "full": "iproute2-6.4.0.tar.xz",
+              "md5": "90ce0eb84a8f1e2b14ffa77e8eb3f5ed",
+              "stem": "iproute2-6.4.0",
+              "suffix": "tar.xz",
+              "name": "iproute2",
+              "version": "6.4.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i /ARPD/d Makefile\nrm -fv man/man8/arpd.8",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make NETNS_RUN_DIR=/run/netns",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make SBINDIR=/usr/sbin install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv             /usr/share/doc/iproute2-6.4.0\ncp -v COPYING README* /usr/share/doc/iproute2-6.4.0",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.65. Kbd-2.6.1",
+            "package": "Kbd-2.6.1",
+            "info": {
+              "full": "kbd-2.6.1.tar.xz",
+              "md5": "986241b5d94c6bd4ed2f6d2a5ab4320b",
+              "stem": "kbd-2.6.1",
+              "suffix": "tar.xz",
+              "name": "kbd",
+              "version": "2.6.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "patch -Np1 -i ../kbd-2.6.1-backspace-1.patch",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed -i '/RESIZECONS_PROGS=/s/yes/no/' configure\nsed -i 's/resizecons.8 //' docs/man/man8/Makefile.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr --disable-vlock",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -R -v docs/doc -T /usr/share/doc/kbd-2.6.1",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.66. Libpipeline-1.5.7",
+            "package": "Libpipeline-1.5.7",
+            "info": {
+              "full": "libpipeline-1.5.7.tar.gz",
+              "md5": "1a48b5771b9f6c790fb4efdb1ac71342",
+              "stem": "libpipeline-1.5.7",
+              "suffix": "tar.gz",
+              "name": "libpipeline",
+              "version": "1.5.7",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.67. Make-4.4.1",
+            "package": "Make-4.4.1",
+            "info": {
+              "full": "make-4.4.1.tar.gz",
+              "md5": "c8469a3713cbbe04d955d4ae4be23eeb",
+              "stem": "make-4.4.1",
+              "suffix": "tar.gz",
+              "name": "make",
+              "version": "4.4.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"PATH=$PATH make check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.68. Patch-2.7.6",
+            "package": "Patch-2.7.6",
+            "info": {
+              "full": "patch-2.7.6.tar.xz",
+              "md5": "78ad9937e4caadcba1526ef1853730d5",
+              "stem": "patch-2.7.6",
+              "suffix": "tar.xz",
+              "name": "patch",
+              "version": "2.7.6",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.69. Tar-1.35",
+            "package": "Tar-1.35",
+            "info": {
+              "full": "tar-1.35.tar.xz",
+              "md5": "a2d8042658cfd8ea939e6d911eaf4152",
+              "stem": "tar-1.35",
+              "suffix": "tar.xz",
+              "name": "tar",
+              "version": "1.35",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "FORCE_UNSAFE_CONFIGURE=1  \\\n./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install\nmake -C doc install-html docdir=/usr/share/doc/tar-1.35",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.70. Texinfo-7.0.3",
+            "package": "Texinfo-7.0.3",
+            "info": {
+              "full": "texinfo-7.0.3.tar.xz",
+              "md5": "37bf94fd255729a14d4ea3dda119f81a",
+              "stem": "texinfo-7.0.3",
+              "suffix": "tar.xz",
+              "name": "texinfo",
+              "version": "7.0.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make TEXMF=/usr/share/texmf install-tex",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pushd /usr/share/info\n  rm -v dir\n  for f in *\n    do install-info $f dir 2>/dev/null\n  done\npopd",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.71. Vim-9.0.1677",
+            "package": "Vim-9.0.1677",
+            "info": {
+              "full": "vim-9.0.1677.tar.gz",
+              "md5": "65e6b09ef0628a2d8eba79f1d1d5a564",
+              "stem": "vim-9.0.1677",
+              "suffix": "tar.gz",
+              "name": "vim",
+              "version": "9.0.1677",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "echo '#define SYS_VIMRC_FILE \"/etc/vimrc\"' >> src/feature.h",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure --prefix=/usr",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "su tester -c \"LANG=en_US.UTF-8 make -j1 test\" &> vim-test.log",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv vim /usr/bin/vi\nfor L in  /usr/share/man/{,*/}man1/vim.1; do\n    ln -sv vim.1 $(dirname $L)/vi.1\ndone",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sv ../vim/vim90/doc /usr/share/doc/vim-9.0.1677",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/vimrc << \"EOF\"\n\" Begin /etc/vimrc\n\n\" Ensure defaults are set before customizing settings, not after\nsource $VIMRUNTIME/defaults.vim\nlet skip_defaults_vim=1\n\nset nocompatible\nset backspace=2\nset mouse=\nsyntax on\nif (&term == \"xterm\") || (&term == \"putty\")\n  set background=dark\nendif\n\n\" End /etc/vimrc\nEOF",
+                "class": "configuration",
+                "check": false
+              },
+              {
+                "command": "vim -c ':options'",
+                "class": "configuration",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.72. MarkupSafe-2.1.3",
+            "package": "MarkupSafe-2.1.3",
+            "info": {
+              "full": "MarkupSafe-2.1.3.tar.gz",
+              "md5": "ca33f119bd0551ce15837f58bb180214",
+              "stem": "MarkupSafe-2.1.3",
+              "suffix": "tar.gz",
+              "name": "MarkupSafe",
+              "version": "2.1.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "pip3 wheel -w dist --no-build-isolation --no-deps $PWD",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pip3 install --no-index --no-user --find-links dist Markupsafe",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.73. Jinja2-3.1.2",
+            "package": "Jinja2-3.1.2",
+            "info": {
+              "full": "Jinja2-3.1.2.tar.gz",
+              "md5": "d31148abd89c1df1cdb077a55db27d02",
+              "stem": "Jinja2-3.1.2",
+              "suffix": "tar.gz",
+              "name": "Jinja2",
+              "version": "3.1.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "pip3 wheel -w dist --no-build-isolation --no-deps $PWD",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "pip3 install --no-index --no-user --find-links dist Jinja2",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.74. Systemd-254",
+            "package": "Systemd-254",
+            "info": {
+              "full": "systemd-254.tar.gz",
+              "md5": "0d266e5361dc72097b6c18cfde1c0001",
+              "stem": "systemd-254",
+              "suffix": "tar.gz",
+              "name": "systemd",
+              "version": "254",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i -e 's/GROUP=\"render\"/GROUP=\"video\"/' \\\n       -e 's/GROUP=\"sgx\", //' rules.d/50-udev-default.rules.in",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mkdir -p build\ncd       build\n\nmeson setup \\\n      --prefix=/usr                 \\\n      --buildtype=release           \\\n      -Ddefault-dnssec=no           \\\n      -Dfirstboot=false             \\\n      -Dinstall-tests=false         \\\n      -Dldconfig=false              \\\n      -Dsysusers=false              \\\n      -Drpmmacrosdir=no             \\\n      -Dhomed=false                 \\\n      -Duserdb=false                \\\n      -Dman=false                   \\\n      -Dmode=release                \\\n      -Dpamconfdir=no               \\\n      -Ddev-kvm-mode=0660           \\\n      -Ddocdir=/usr/share/doc/systemd-254 \\\n      ..",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ninja",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ninja install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "tar -xf ../../systemd-man-pages-254.tar.xz \\\n    --no-same-owner --strip-components=1   \\\n    -C /usr/share/man",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "systemd-machine-id-setup",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "systemctl preset-all",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "systemctl disable systemd-sysupdate{,-reboot}",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.75. D-Bus-1.14.8",
+            "package": "D-Bus-1.14.8",
+            "info": {
+              "full": "dbus-1.14.8.tar.xz",
+              "md5": "da42f55aeec51b355587bc3062fc2d41",
+              "stem": "dbus-1.14.8",
+              "suffix": "tar.xz",
+              "name": "dbus",
+              "version": "1.14.8",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                        \\\n            --sysconfdir=/etc                    \\\n            --localstatedir=/var                 \\\n            --runstatedir=/run                   \\\n            --enable-user-session                \\\n            --disable-static                     \\\n            --disable-doxygen-docs               \\\n            --disable-xml-docs                   \\\n            --docdir=/usr/share/doc/dbus-1.14.8  \\\n            --with-system-socket=/run/dbus/system_bus_socket",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "ln -sfv /etc/machine-id /var/lib/dbus",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.76. Man-DB-2.11.2",
+            "package": "Man-DB-2.11.2",
+            "info": {
+              "full": "man-db-2.11.2.tar.xz",
+              "md5": "a7d59fb2df6158c44f8f7009dcc6d875",
+              "stem": "man-db-2.11.2",
+              "suffix": "tar.xz",
+              "name": "man-db",
+              "version": "2.11.2",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                         \\\n            --docdir=/usr/share/doc/man-db-2.11.2 \\\n            --sysconfdir=/etc                     \\\n            --disable-setuid                      \\\n            --enable-cache-owner=bin              \\\n            --with-browser=/usr/bin/lynx          \\\n            --with-vgrind=/usr/bin/vgrind         \\\n            --with-grap=/usr/bin/grap",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make -k check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.77. Procps-ng-4.0.3",
+            "package": "Procps-ng-4.0.3",
+            "info": {
+              "full": "procps-ng-4.0.3.tar.xz",
+              "md5": "22b287bcd758831cbaf3356cd3054fe7",
+              "stem": "procps-ng-4.0.3",
+              "suffix": "tar.xz",
+              "name": "procps-ng",
+              "version": "4.0.3",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "./configure --prefix=/usr                           \\\n            --docdir=/usr/share/doc/procps-ng-4.0.3 \\\n            --disable-static                        \\\n            --disable-kill                          \\\n            --with-systemd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.78. Util-linux-2.39.1",
+            "package": "Util-linux-2.39.1",
+            "info": {
+              "full": "util-linux-2.39.1.tar.xz",
+              "md5": "c542cd7c0726254e4b3006a9b428201a",
+              "stem": "util-linux-2.39.1",
+              "suffix": "tar.xz",
+              "name": "util-linux",
+              "version": "2.39.1",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "sed -i '/test_mkfds/s/^/#/' tests/helpers/Makemodule.am",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "./configure ADJTIME_PATH=/var/lib/hwclock/adjtime \\\n            --bindir=/usr/bin    \\\n            --libdir=/usr/lib    \\\n            --runstatedir=/run   \\\n            --sbindir=/usr/sbin  \\\n            --disable-chfn-chsh  \\\n            --disable-login      \\\n            --disable-nologin    \\\n            --disable-su         \\\n            --disable-setpriv    \\\n            --disable-runuser    \\\n            --disable-pylibmount \\\n            --disable-static     \\\n            --without-python     \\\n            --docdir=/usr/share/doc/util-linux-2.39.1",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "bash tests/run.sh --srcdir=$PWD --builddir=$PWD",
+                "class": "admon warning",
+                "check": false
+              },
+              {
+                "command": "chown -Rv tester .\nsu tester -c \"make -k check\"",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.79. E2fsprogs-1.47.0",
+            "package": "E2fsprogs-1.47.0",
+            "info": {
+              "full": "e2fsprogs-1.47.0.tar.gz",
+              "md5": "6b4f18a33873623041857b4963641ee9",
+              "stem": "e2fsprogs-1.47.0",
+              "suffix": "tar.gz",
+              "name": "e2fsprogs",
+              "version": "1.47.0",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "mkdir -v build\ncd       build",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "../configure --prefix=/usr           \\\n             --sysconfdir=/etc       \\\n             --enable-elf-shlibs     \\\n             --disable-libblkid      \\\n             --disable-libuuid       \\\n             --disable-uuidd         \\\n             --disable-fsck",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make check",
+                "class": "installation",
+                "check": true
+              },
+              {
+                "command": "make install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "rm -fv /usr/lib/{libcom_err,libe2p,libext2fs,libss}.a",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "gunzip -v /usr/share/info/libext2fs.info.gz\ninstall-info --dir-file=/usr/share/info/dir /usr/share/info/libext2fs.info",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "makeinfo -o      doc/com_err.info ../lib/et/com_err.texinfo\ninstall -v -m644 doc/com_err.info /usr/share/info\ninstall-info --dir-file=/usr/share/info/dir /usr/share/info/com_err.info",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "sed 's/metadata_csum_seed,//' -i /etc/mke2fs.conf",
+                "class": "configuration",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.81. Stripping",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "save_usrlib=\"$(cd /usr/lib; ls ld-linux*[^g])\n             libc.so.6\n             libthread_db.so.1\n             libquadmath.so.0.0.0\n             libstdc++.so.6.0.32\n             libitm.so.1.0.0\n             libatomic.so.1.2.0\"\n\ncd /usr/lib\n\nfor LIB in $save_usrlib; do\n    objcopy --only-keep-debug $LIB $LIB.dbg\n    cp $LIB /tmp/$LIB\n    strip --strip-unneeded /tmp/$LIB\n    objcopy --add-gnu-debuglink=$LIB.dbg /tmp/$LIB\n    install -vm755 /tmp/$LIB /usr/lib\n    rm /tmp/$LIB\ndone\n\nonline_usrbin=\"bash find strip\"\nonline_usrlib=\"libbfd-2.41.so\n               libsframe.so.1.0.0\n               libhistory.so.8.2\n               libncursesw.so.6.4\n               libm.so.6\n               libreadline.so.8.2\n               libz.so.1.2.13\n               $(cd /usr/lib; find libnss*.so* -type f)\"\n\nfor BIN in $online_usrbin; do\n    cp /usr/bin/$BIN /tmp/$BIN\n    strip --strip-unneeded /tmp/$BIN\n    install -vm755 /tmp/$BIN /usr/bin\n    rm /tmp/$BIN\ndone\n\nfor LIB in $online_usrlib; do\n    cp /usr/lib/$LIB /tmp/$LIB\n    strip --strip-unneeded /tmp/$LIB\n    install -vm755 /tmp/$LIB /usr/lib\n    rm /tmp/$LIB\ndone\n\nfor i in $(find /usr/lib -type f -name \\*.so* ! -name \\*dbg) \\\n         $(find /usr/lib -type f -name \\*.a)                 \\\n         $(find /usr/{bin,sbin,libexec} -type f); do\n    case \"$online_usrbin $online_usrlib $save_usrlib\" in\n        *$(basename $i)* )\n            ;;\n        * ) strip --strip-unneeded $i\n            ;;\n    esac\ndone\n\nunset BIN LIB save_usrlib online_usrbin online_usrlib",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "8.82. Cleaning Up",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "rm -rf /tmp/*",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "find /usr/lib /usr/libexec -name \\*.la -delete",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "find /usr -depth -name $(uname -m)-lfs-linux-gnu\\* | xargs rm -rf",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "userdel -r tester",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 9. System Configuration",
+        "page_count": 10,
+        "pages": [
+          {
+            "title": "9.2. General Network Configuration",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "systemctl disable systemd-networkd-wait-online",
+                "class": "admon note",
+                "check": false
+              },
+              {
+                "command": "ln -s /dev/null /etc/systemd/network/99-default.link",
+                "class": "listitem",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/systemd/network/10-ether0.link << \"EOF\"\n[Match]\n# Change the MAC address as appropriate for your network device\nMACAddress=12:34:45:78:90:AB\n\n[Link]\nName=ether0\nEOF",
+                "class": "listitem",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/systemd/network/10-eth-static.network << \"EOF\"\n[Match]\nName=<network-device-name>\n\n[Network]\nAddress=192.168.0.2/24\nGateway=192.168.0.1\nDNS=192.168.0.1\nDomains=<Your Domain Name>\nEOF",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/systemd/network/10-eth-dhcp.network << \"EOF\"\n[Match]\nName=<network-device-name>\n\n[Network]\nDHCP=ipv4\n\n[DHCPv4]\nUseDomains=true\nEOF",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "systemctl disable systemd-resolved",
+                "class": "admon note",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/resolv.conf << \"EOF\"\n# Begin /etc/resolv.conf\n\ndomain <Your Domain Name>\nnameserver <IP address of your primary nameserver>\nnameserver <IP address of your secondary nameserver>\n\n# End /etc/resolv.conf\nEOF",
+                "class": "sect3",
+                "check": false
+              },
+              {
+                "command": "echo \"<lfs>\" > /etc/hostname",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/hosts << \"EOF\"\n# Begin /etc/hosts\n\n127.0.0.1 localhost.localdomain localhost\n127.0.1.1 <FQDN> <HOSTNAME>\n<192.168.0.2> <FQDN> <HOSTNAME> [alias1] [alias2] ...\n::1       localhost ip6-localhost ip6-loopback\nff02::1   ip6-allnodes\nff02::2   ip6-allrouters\n\n# End /etc/hosts\nEOF",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.4. Managing Devices",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "udevadm info -a -p /sys/class/video4linux/video0",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/udev/rules.d/83-duplicate_devs.rules << \"EOF\"\n\n# Persistent symlinks for webcam and tuner\nKERNEL==\"video*\", ATTRS{idProduct}==\"1910\", ATTRS{idVendor}==\"0d81\", SYMLINK+=\"webcam\"\nKERNEL==\"video*\", ATTRS{device}==\"0x036f\",  ATTRS{vendor}==\"0x109e\", SYMLINK+=\"tvtuner\"\n\nEOF",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.5. Configuring the system clock",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > /etc/adjtime << \"EOF\"\n0.0 0 0.0\n0\nLOCAL\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "timedatectl set-local-rtc 1",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "timedatectl set-time YYYY-MM-DD HH:MM:SS",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "timedatectl set-timezone TIMEZONE",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "timedatectl list-timezones",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "systemctl disable systemd-timesyncd",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.6. Configuring the Linux Console",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > /etc/vconsole.conf << \"EOF\"\nKEYMAP=de-latin1\nFONT=Lat2-Terminus16\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "localectl set-keymap MAP",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "localectl set-x11-keymap LAYOUT [MODEL] [VARIANT] [OPTIONS]",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.7. Configuring the System Locale",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "locale -a",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "LC_ALL=<locale name> locale charmap",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "LC_ALL=<locale name> locale language\nLC_ALL=<locale name> locale charmap\nLC_ALL=<locale name> locale int_curr_symbol\nLC_ALL=<locale name> locale int_prefix",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/locale.conf << \"EOF\"\nLANG=<ll>_<CC>.<charmap><@modifiers>\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "localectl set-locale LANG=\"<ll>_<CC>.<charmap><@modifiers>\"",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "localectl set-locale LANG=\"en_US.UTF-8\" LC_CTYPE=\"en_US\"",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.8. Creating the /etc/inputrc File",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > /etc/inputrc << \"EOF\"\n# Begin /etc/inputrc\n# Modified by Chris Lynn <roryo@roryo.dynup.net>\n\n# Allow the command prompt to wrap to the next line\nset horizontal-scroll-mode Off\n\n# Enable 8-bit input\nset meta-flag On\nset input-meta On\n\n# Turns off 8th bit stripping\nset convert-meta Off\n\n# Keep the 8th bit for display\nset output-meta On\n\n# none, visible or audible\nset bell-style none\n\n# All of the following map the escape sequence of the value\n# contained in the 1st argument to the readline specific functions\n\"\\eOd\": backward-word\n\"\\eOc\": forward-word\n\n# for linux console\n\"\\e[1~\": beginning-of-line\n\"\\e[4~\": end-of-line\n\"\\e[5~\": beginning-of-history\n\"\\e[6~\": end-of-history\n\"\\e[3~\": delete-char\n\"\\e[2~\": quoted-insert\n\n# for xterm\n\"\\eOH\": beginning-of-line\n\"\\eOF\": end-of-line\n\n# for Konsole\n\"\\e[H\": beginning-of-line\n\"\\e[F\": end-of-line\n\n# End /etc/inputrc\nEOF",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.9. Creating the /etc/shells File",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > /etc/shells << \"EOF\"\n# Begin /etc/shells\n\n/bin/sh\n/bin/bash\n\n# End /etc/shells\nEOF",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "9.10. Systemd Usage and Configuration",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "mkdir -pv /etc/systemd/system/getty@tty1.service.d\n\ncat > /etc/systemd/system/getty@tty1.service.d/noclear.conf << EOF\n[Service]\nTTYVTDisallocate=no\nEOF",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "ln -sfv /dev/null /etc/systemd/system/tmp.mount",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "mkdir -p /etc/tmpfiles.d\ncp /usr/lib/tmpfiles.d/tmp.conf /etc/tmpfiles.d",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv /etc/systemd/system/foobar.service.d\n\ncat > /etc/systemd/system/foobar.service.d/foobar.conf << EOF\n[Service]\nRestart=always\nRestartSec=30\nEOF",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "mkdir -pv /etc/systemd/coredump.conf.d\n\ncat > /etc/systemd/coredump.conf.d/maxuse.conf << EOF\n[Coredump]\nMaxUse=5G\nEOF",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 10. Making the LFS System Bootable",
+        "page_count": 4,
+        "pages": [
+          {
+            "title": "10.2. Creating the /etc/fstab File",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cat > /etc/fstab << \"EOF\"\n# Begin /etc/fstab\n\n# file system  mount-point  type     options             dump  fsck\n#                                                              order\n\n/dev/<xxx>     /            <fff>    defaults            1     1\n/dev/<yyy>     swap         swap     pri=1               0     0\n\n# End /etc/fstab\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "hdparm -I /dev/sda | grep NCQ",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "10.3. Linux-6.4.12",
+            "package": "Linux-6.4.12",
+            "info": {
+              "full": "linux-6.4.12.tar.xz",
+              "md5": "24570ba0ef9dd592bd640a1a41686fac",
+              "stem": "linux-6.4.12",
+              "suffix": "tar.xz",
+              "name": "linux",
+              "version": "6.4.12",
+              "extra": ""
+            },
+            "userinputs": [
+              {
+                "command": "make mrproper",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make menuconfig",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "make modules_install",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "mount /boot",
+                "class": "admon caution",
+                "check": false
+              },
+              {
+                "command": "cp -iv arch/x86/boot/bzImage /boot/vmlinuz-6.4.12-lfs-12.0-systemd",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -iv System.map /boot/System.map-6.4.12",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -iv .config /boot/config-6.4.12",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "cp -r Documentation -T /usr/share/doc/linux-6.4.12",
+                "class": "installation",
+                "check": false
+              },
+              {
+                "command": "install -v -m755 -d /etc/modprobe.d\ncat > /etc/modprobe.d/usb.conf << \"EOF\"\n# Begin /etc/modprobe.d/usb.conf\n\ninstall ohci_hcd /sbin/modprobe ehci_hcd ; /sbin/modprobe -i ohci_hcd ; true\ninstall uhci_hcd /sbin/modprobe ehci_hcd ; /sbin/modprobe -i uhci_hcd ; true\n\n# End /etc/modprobe.d/usb.conf\nEOF",
+                "class": "configuration",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "10.4. Using GRUB to Set Up the Boot Process",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "cd /tmp\ngrub-mkrescue --output=grub-img.iso\nxorriso -as cdrecord -v dev=/dev/cdrw blank=as_needed grub-img.iso",
+                "class": "sect2",
+                "check": true
+              },
+              {
+                "command": "grub-install /dev/sda",
+                "class": "sect2",
+                "check": false
+              },
+              {
+                "command": "cat > /boot/grub/grub.cfg << \"EOF\"\n# Begin /boot/grub/grub.cfg\nset default=0\nset timeout=5\n\ninsmod part_gpt\ninsmod ext2\nset root=(hd0,2)\n\nmenuentry \"GNU/Linux, Linux 6.4.12-lfs-12.0-systemd\" {\n        linux   /boot/vmlinuz-6.4.12-lfs-12.0-systemd root=/dev/sda2 ro\n}\nEOF",
+                "class": "sect2",
+                "check": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title_chapter": "Chapter 11. The End",
+        "page_count": 5,
+        "pages": [
+          {
+            "title": "11.1. The End",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "echo 12.0-systemd > /etc/lfs-release",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/lsb-release << \"EOF\"\nDISTRIB_ID=\"Linux From Scratch\"\nDISTRIB_RELEASE=\"12.0-systemd\"\nDISTRIB_CODENAME=\"<your name here>\"\nDISTRIB_DESCRIPTION=\"Linux From Scratch\"\nEOF",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "cat > /etc/os-release << \"EOF\"\nNAME=\"Linux From Scratch\"\nVERSION=\"12.0-systemd\"\nID=lfs\nPRETTY_NAME=\"Linux From Scratch 12.0-systemd\"\nVERSION_CODENAME=\"<your name here>\"\nEOF",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          },
+          {
+            "title": "11.3. Rebooting the System",
+            "package": null,
+            "info": null,
+            "userinputs": [
+              {
+                "command": "logout",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "umount -v $LFS/dev/pts\nmountpoint -q $LFS/dev/shm && umount $LFS/dev/shm\numount -v $LFS/dev\numount -v $LFS/run\numount -v $LFS/proc\numount -v $LFS/sys",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "umount -v $LFS/home\numount -v $LFS",
+                "class": "sect1",
+                "check": false
+              },
+              {
+                "command": "umount -v $LFS",
+                "class": "sect1",
+                "check": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
