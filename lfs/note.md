@@ -185,7 +185,22 @@ chown -R root:root $LFS/sources/*
 # !! step-by-step: copy, paste, run and check
 
 # [ ! -e /etc/bash.bashrc ] || sudo mv -v /etc/bash.bashrc /etc/bash.bashrc.NOUSE
-ch04.sh
+ch04.
+
+# lfs directories show:
+# /mnt/lfs
+# ├── bin -> usr/bin
+# ├── boot
+# ├── etc
+# ├── home
+# ├── lib -> usr/lib
+# ├── lib64
+# ├── lost+found
+# ├── sbin -> usr/sbin
+# ├── sources
+# ├── tools
+# ├── usr
+# └── var
 ```
 
 ### Buildings (chapter 5-8)
@@ -407,7 +422,7 @@ Bad case:
 
 ### Linux kernel extra config
 
-**IMPORTANT** Some extra options are need in `make menuconfig` if you use VM. Mainly about `Fusion MPT`.
+**IMPORTANT** Some extra options are need in `make menuconfig` if you use VM with SCSI hard disk.
 
 ```
 Device Drivers --->
@@ -424,8 +439,7 @@ Device Drivers --->
 Bad case:
 
 > ... [end Kernel panic - not syncing: UFS: Unable to Mount root fs
->
-> > on unknown-block(0,0) ]
+> on unknown-block(0,0) ]
 
 ![boot-fail](images/boot-fail.png)
 

@@ -29,3 +29,4 @@ Some modifications are added from original extracted scripts by python.
 ## Related
 
 - [luisgbm/lfs-scripts](https://github.com/luisgbm/lfs-scripts)
+- [FreeFlyingSheep/lfs](https://github.com/FreeFlyingSheep/lfs)
