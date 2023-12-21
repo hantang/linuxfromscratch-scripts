@@ -85,6 +85,12 @@ Scripts modifications:
 - `/etc/fstab`, linux menuconfig, `/boot/grub/grub.cfg` in `ch10.sh`
 - change `DISTRIB_CODENAME` in `ch11.sh`
 
+
+Issues:
+- `sysvinit`:
+  - No network. `ifconfig.eth0` in `ch09.sh` needs modify.
+
+
 ## Step-by-Step
 
 Note: some step order in chapter 2 and 3 are adjusted.
@@ -422,7 +428,7 @@ Bad case:
 
 ### Linux kernel extra config
 
-**IMPORTANT** Some extra options are need in `make menuconfig` if you use VM with SCSI hard disk.
+**IMPORTANT** Some extra options are need in `make menuconfig` if you use VM with SCSI controller, or try to use SATA or HDD controller.
 
 ```
 Device Drivers --->
@@ -434,12 +440,39 @@ Device Drivers --->
    SCSI device support --->
       [*] SCSI low-level drivers
         <*> LSI MPT Fusion SAS 3.0 & SAS 2.0 Device Driver
+
+# More
+Device Drivers  --->
+   Generic Driver Options  --->
+      ()  path to uevent helper
+      [*] Maintain a devtmpfs filesystem to mount at /dev
+      [*]   Automount devtmpfs at /dev, after the kernel mounted the rootfs (optional)
+
+   Misc devices  --->
+      <*> VMware VMCI Driver
+
+  [*] SCSI low-level drivers  --->
+      <*>   BusLogic SCSI support
+      <*>   VMware PVSCSI driver support
 ```
 
 Bad case:
 
 > ... [end Kernel panic - not syncing: UFS: Unable to Mount root fs
 > on unknown-block(0,0) ]
+
+
+> **relate discuss**:
+> - https://www.linuxquestions.org/questions/showthread.php?p=6452118#post6452118
+> - https://www.linuxquestions.org/questions/linux-from-scratch-13/lfs-7-5-kernel-panic-error-unable-to-mount-rootfs-4175506219/
+> - https://blog.andreev.it/2013/09/linux-from-scratch-as-a-virtual-machine-on-vmware-workstation/
+> 
+> > For LFS to work as a VM, you must select (built-in, not module):
+> > – Device Drivers, Generic Driver Options, Maintain a devtmpfs filesystem to mount at /dev
+> > – Device Drivers, Network device support, Ethernet Driver support, AMD PCnet32 PCI support
+> > – Device Drivers, Fusion MPT device support (select the three drivers for SPI, FC, SAS)
+> > – Device Drivers, SCSI device support, SCSI low-level drivers
+> > – File Systems, Ext3 Journaling file system support
 
 ![boot-fail](images/boot-fail.png)
 
