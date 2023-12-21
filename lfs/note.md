@@ -273,6 +273,9 @@ umount -Rv $LFS
 # first change disk order in bios when booting, system is loaded from first disk.
 ```
 
+Movie disk in BIOS in VM (`-`/`+` keys)
+![bios-move-devices](images/bios-move-devices.png)
+
 ## Appendix
 
 ### Packages statistics
@@ -400,7 +403,7 @@ Bad case:
 
 > error:file '/boot/vmlinuz-6.4.12-lfs-12.0' not found.
 
-![](images/boot-not-found.png)
+![boot-not-found](images/boot-not-found.png)
 
 ### Linux kernel extra config
 
@@ -421,13 +424,14 @@ Device Drivers --->
 Bad case:
 
 > ... [end Kernel panic - not syncing: UFS: Unable to Mount root fs
+>
 > > on unknown-block(0,0) ]
 
-![](images/boot-fail.png)
+![boot-fail](images/boot-fail.png)
 
 ### Snapshots
 
-![](images/boot-ok.png)
+![boot-ok](images/boot-ok.png)
 
 ---
 
