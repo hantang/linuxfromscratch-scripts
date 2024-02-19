@@ -47,6 +47,9 @@ python html2scripts.py
 
 2. Run LFS Scripts
 
+> [!warning]
+> Before run, read the LFS documents first and check autogen scripts.
+
 Don't run immediately, read the LFS documents first, then follow the steps in [lfs/note.md](lfs/note.md). Some modifications are added from original extracted shell scripts by python.
 
 ## Related
