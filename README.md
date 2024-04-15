@@ -30,6 +30,9 @@
 
 1. Create Scripts
 
+> [!info]
+> This step extract script from `LFS` document `<pre>` part.
+
 ```shell
 # optional: download full directory, just need NOCHUNKS.html and md5sums file
 ## sysvinit version
@@ -50,7 +53,10 @@ python html2scripts.py
 > [!warning]
 > Before run, read the LFS documents first and check autogen scripts.
 
-Don't run immediately, read the LFS documents first, then follow the steps in [lfs/note.md](lfs/note.md). Some modifications are added from original extracted shell scripts by python.
+Don't run immediately, read the LFS documents first,
+then follow the `Step-by-Step` part in [lfs/note.md](lfs/note.md#step-by-step),
+run the command in your terminal manually.
+Some modifications are added from original extracted shell scripts by python.
 
 ## Related
 
