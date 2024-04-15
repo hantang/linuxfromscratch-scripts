@@ -21,22 +21,22 @@
 
 `sysvinit` documents:
 
-- https://www.linuxfromscratch.org/lfs/view/stable/
-- https://www.linuxfromscratch.org/lfs/view/12.0/
-- https://lfs.xry111.site/zh_CN/12.0/index.html
+- <https://www.linuxfromscratch.org/lfs/view/stable/>
+- <https://www.linuxfromscratch.org/lfs/view/12.0/>
+- <https://lfs.xry111.site/zh_CN/12.0/index.html>
 
 `systemd` documents:
 
-- https://www.linuxfromscratch.org/lfs/view/stable-systemd/
-- https://www.linuxfromscratch.org/lfs/view/12.0-systemd/
-- https://lfs.xry111.site/zh_CN/12.0-systemd/
+- <https://www.linuxfromscratch.org/lfs/view/stable-systemd/>
+- <https://www.linuxfromscratch.org/lfs/view/12.0-systemd/>
+- <https://lfs.xry111.site/zh_CN/12.0-systemd/>
 
 More:
 
-- https://www.linuxfromscratch.org/lfs/errata/12.0/
-- https://www.linuxfromscratch.org/lfs/advisories/12.0.html
-- http://www.tldp.org/HOWTO/Software-Building-HOWTO.html
-- http://moi.vonos.net/linux/beginners-installing-from-source/
+- <https://www.linuxfromscratch.org/lfs/errata/12.0/>
+- <https://www.linuxfromscratch.org/lfs/advisories/12.0.html>
+- <http://www.tldp.org/HOWTO/Software-Building-HOWTO.html>
+- <http://moi.vonos.net/linux/beginners-installing-from-source/>
 
 ## Overview
 
@@ -54,7 +54,7 @@ su - lfs
 chroot /mnt/lfs ...
 ```
 
-Disk partitions: `2.4. Creating a New Partition `
+Disk partitions: `2.4. Creating a New Partition`
 
 - Basic partitions
 
@@ -85,17 +85,22 @@ Scripts modifications:
 - `/etc/fstab`, linux menuconfig, `/boot/grub/grub.cfg` in `ch10.sh`
 - change `DISTRIB_CODENAME` in `ch11.sh`
 
-
 Issues:
+
 - `sysvinit`:
   - No network. `ifconfig.eth0` in `ch09.sh` needs modify.
 
-
 ## Step-by-Step
 
-Note: some step order in chapter 2 and 3 are adjusted.
-
 ### Preparations (chapter 2-4)
+
+> [!info]
+> Some step orders in chapter 2 and 3 are adjusted,
+> and content in `ch02.sh`, `ch03.sh` are included
+>
+> `# [root]` means you need run script in root env.
+
+- `ch02`/`ch03`
 
 ```shell
 # [normal user with sudo]
@@ -112,7 +117,7 @@ Note: some step order in chapter 2 and 3 are adjusted.
 # https://www.linuxfromscratch.org/lfs/view/12.0-systemd/md5sums
 # wget --input-file=wget-list-systemd --continue --directory-prefix=$LFS/sources
 
-# use mirror site in China
+# or use mirror site in China
 # https://mirrors.nju.edu.cn/lfs/lfs-packages/
 # https://mirrors.ustc.edu.cn/lfs/lfs-packages/
 # https://mirrors.aliyun.com/lfs/lfs-packages/
@@ -185,15 +190,18 @@ sudo cp path/scripts/*.sh  $LFS/sources/scripts
 chown -R root:root $LFS/sources/*
 ```
 
+- `ch04`
+
 ```shell
 # [root]
 ## Chapter 4. Final Preparations
-# !! step-by-step: copy, paste, run and check
+## !! run manually: ch04.sh
+# step-by-step: copy, paste, run and check, don't `sh ch04.sh`
 
+# optional
 # [ ! -e /etc/bash.bashrc ] || sudo mv -v /etc/bash.bashrc /etc/bash.bashrc.NOUSE
-ch04.
 
-# lfs directories show:
+# final lfs directories like:
 # /mnt/lfs
 # ├── bin -> usr/bin
 # ├── boot
@@ -211,6 +219,8 @@ ch04.
 
 ### Buildings (chapter 5-8)
 
+- `ch05`, `ch06`
+
 ```shell
 # [lfs]
 ## Chapter 5. Compiling a Cross-Toolchain
@@ -227,6 +237,8 @@ sh $mysrcdir/ch06.sh | tee $mylogdir/ch06.log
 # exit lfs user
 exit
 ```
+
+- `ch07`
 
 ```shell
 # [root]
@@ -247,6 +259,8 @@ rm -rf /usr/share/{info,man,doc}/*
 find /usr/{lib,libexec} -name \*.la -delete
 rm -rf /tools
 ```
+
+- `ch08`
 
 ```shell
 # [chroot]
@@ -270,27 +284,35 @@ passwd root
 
 ### Final Step (chapter 9-11)
 
+- `ch09`, `ch10`, `ch11`
+
 ```shell
 # [chroot]
 ## Chapter 9-11
-# most hard part.
+# Most hard part, main works:
+# - create /etc/fstab
+# - create linux kernel: make menuconfig
+# - create /boot/grub/grub.cfg
 
-# /etc/fstab
-# linux kernel: make menuconfig
-# /boot/grub/grub.cfg
 export mysrcdir=/sources/scripts
 
 sh $mysrcdir/ch09.sh
-# sh $mysrcdir/ch10.sh # run manually
+
+# !! run manually: ch10.sh
+# step-by-step: copy, paste, run and check, don't `sh $mysrcdir/ch10.sh`
+
 sh $mysrcdir/ch11.sh
 ```
+
+- final step:
 
 ```shell
 # THE END
 logout
 umount -Rv $LFS
 
-# shutdown now # reboot
+## !! This will reboot the PC
+shutdown now
 # first change disk order in bios when booting, system is loaded from first disk.
 ```
 
@@ -301,7 +323,7 @@ Movie disk in BIOS in VM (`-`/`+` keys)
 
 ### Packages statistics
 
-```
+```shell
 # total packages：94 (not all used in sysvinit or systemd separately)
 # *.xz - 48: tar -xf xx.tar.xz
 # *.gz - 36: tar -xf xx.tar.gz
@@ -311,7 +333,7 @@ Movie disk in BIOS in VM (`-`/`+` keys)
 
 ### Disk partition result
 
-```
+```shell
 # result
 # fdisk -l /dev/sdb
 # Disk /dev/sdb: 20 GiB, 21474836480 bytes, 41943040 sectors
@@ -430,7 +452,7 @@ Bad case:
 
 **IMPORTANT** Some extra options are need in `make menuconfig` if you use VM with SCSI controller, or try to use SATA or HDD controller.
 
-```
+```shell
 Device Drivers --->
    [*]Fusion MPT device support --->
       <*> Fusion MPT ScsiHost drivers for SPI
@@ -458,15 +480,16 @@ Device Drivers  --->
 
 Bad case:
 
-> ... [end Kernel panic - not syncing: UFS: Unable to Mount root fs
-> on unknown-block(0,0) ]
-
+> ... \[end Kernel panic - not syncing: UFS: Unable to Mount root fs
+>
+> > on unknown-block(0,0) \]
 
 > **relate discuss**:
-> - https://www.linuxquestions.org/questions/showthread.php?p=6452118#post6452118
-> - https://www.linuxquestions.org/questions/linux-from-scratch-13/lfs-7-5-kernel-panic-error-unable-to-mount-rootfs-4175506219/
-> - https://blog.andreev.it/2013/09/linux-from-scratch-as-a-virtual-machine-on-vmware-workstation/
-> 
+>
+> - <https://www.linuxquestions.org/questions/showthread.php?p=6452118#post6452118>
+> - <https://www.linuxquestions.org/questions/linux-from-scratch-13/lfs-7-5-kernel-panic-error-unable-to-mount-rootfs-4175506219/>
+> - <https://blog.andreev.it/2013/09/linux-from-scratch-as-a-virtual-machine-on-vmware-workstation/>
+>
 > > For LFS to work as a VM, you must select (built-in, not module):
 > > – Device Drivers, Generic Driver Options, Maintain a devtmpfs filesystem to mount at /dev
 > > – Device Drivers, Network device support, Ethernet Driver support, AMD PCnet32 PCI support
