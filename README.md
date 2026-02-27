@@ -10,8 +10,13 @@
 
 ## Versions
 
-- Version 12 (2023-):
-  - [ ] Version 12.1-rc1: February 15th, 2024
+- Version 13 (2026-):
+  - [ ] Version 13.0-rc1: February 14th, 2026
+- Version 12 (2023-2025):
+  - [ ] Version 12.4: September 1st, 2025
+  - [ ] Version 12.3: March 5th, 2025
+  - [ ] Version 12.2: September 1st, 2024
+  - [ ] Version 12.1: March 1st, 2024
   - [x] Version 12.0: September 1st, 2023
 - Version 11 (2021-2023):
   - [ ] Version 11.3: March 1st, 2023
@@ -35,17 +40,19 @@
 
 ```shell
 # optional: download full directory, just need NOCHUNKS.html and md5sums file
+bash download.sh lfs-doc 12.4
 ## sysvinit version
-wget -r -np -nH -R index.html https://www.linuxfromscratch.org/lfs/downloads/12.0/
+# wget -r -np -nH --cut-dirs=2 -R index.html -P demo https://www.linuxfromscratch.org/lfs/downloads/12.0/
 ## systemd version
-wget -r -np -nH -R index.html https://www.linuxfromscratch.org/lfs/downloads/12.0-systemd/
+# wget -r -np -nH --cut-dirs=2 -R index.html https://www.linuxfromscratch.org/lfs/downloads/12.0-systemd/
 
 ## stable version
 # https://www.linuxfromscratch.org/lfs/downloads/stable/
 # https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/
 
 # run scripts, use python 3.10+ with beautifulsoup4
-python html2scripts.py
+# pip install -r requirements.txt
+python html2scripts.py --version 12.4 --data lfs-doc --output lfs-out
 ```
 
 2. Run LFS Scripts
@@ -62,3 +69,4 @@ Some modifications are added from original extracted shell scripts by python.
 
 - [luisgbm/lfs-scripts](https://github.com/luisgbm/lfs-scripts)
 - [FreeFlyingSheep/lfs](https://github.com/FreeFlyingSheep/lfs)
+- [qundao/mirror-lfs](https://github.com/qundao/mirror-lfs)

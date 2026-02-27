@@ -3,14 +3,21 @@
 
 """
 Parse scripts in LFS html, output by chapters.
+example:
+    python html2scripts.py --version 12.0 --data lfs-doc --output lfs-out --all
 """
 
+import argparse
 import json
 import logging
 import re
 from pathlib import Path
+import shutil
 
 from bs4 import BeautifulSoup
+
+PARTS_COUNT = 5
+TITLE_CLASS = "titlepage"
 
 
 def strip(text):
@@ -27,14 +34,14 @@ def strip2(text, last=True):
 def is_check(text):
     # mark make test or make test
     if (
-            re.findall(r"make .*(check|test)", text)
-            or re.findall(r"(chown|su) .*tester", text)
-            or "grub-mkrescue" in text
-            or "test_summary" in text
-            or "ulimit -s" in text
-            or "libfoo" in text
-            or ("dummy" in text and ("groupadd" in text or "groupdel" in text))
-            or text.startswith("wget ")
+        re.findall(r"make .*(check|test)", text)
+        or re.findall(r"(chown|su) .*tester", text)
+        or "grub-mkrescue" in text
+        or "test_summary" in text
+        or "ulimit -s" in text
+        or "libfoo" in text
+        or ("dummy" in text and ("groupadd" in text or "groupdel" in text))
+        or text.startswith("wget ")
     ):
         return True
     else:
@@ -45,10 +52,11 @@ def split_name(package):
     # package naming: name-version-extra.suffix
     # e.g.: acl-2.3.1.tar.xz
     pattern1 = r"(?P<name>\w[\w\-]*\w+)-(?P<version>(\d+\.)*\d+)(?P<extra>)\.(?P<suffix>(tar(\.\w+)?)|(patch))"
-    # e.g.: python-3.11.4-docs-html.tar.bz2
-    pattern2 = r"(?P<name>\w[\w\-]*\w+)-(?P<version>(\d+\.)*\d+)-(?P<extra>[\w\-]+)\.(?P<suffix>(tar(\.\w+)?)|(patch))"
+    # e.g.: python-3.11.4-docs-html.tar.bz2, ncurses-6.5-20250809.tgz
+    pattern2 = r"(?P<name>\w[\w\-]*\w+)-(?P<version>(\d+\.)*\d+)-(?P<extra>[\w\-]+)\.(?P<suffix>((tar|tgz)(\.\w+)?)|(patch))"
     # e.g.: tcl8.6.13-src.tar.gz
     pattern3 = r"(?P<name>[a-zA-Z]+)(?P<version>(\d+\.)*\d+[a-z]?)-?(?P<extra>[\w\-]*)\.(?P<suffix>(tar(\.\w+)?)|(patch))"
+
     m = None
     for pat in [pattern1, pattern2, pattern3]:
         m = re.match(pat, package)
@@ -120,12 +128,73 @@ def extract_packages(md5_file):
         "Flit-Core": "flit_core",
         "XML::Parser": "XML-Parser",
         "D-Bus": "dbus",
+        "sqlite": "sqlite-doc", # 13.0, sqlite-autoconf, sqlite-doc
     }
     package_rename = {k.lower(): v.lower() for k, v in package_rename.items()}
     return package_dict, package_rename
 
 
-def parse_html(html_file, package_dict, package_rename, savedir):
+def _get_content_pairs(has_title, body, class_value, title_key):
+    pairs = []
+    contents = body.find_all("div", recursive=False, class_=class_value)
+    if not has_title:
+        titles = body.find_all("div", class_=title_key, recursive=False)
+        assert len(titles) == len(contents)
+        pairs = list(zip(titles, contents))
+    else:
+        pairs = [[ch.find("div", class_=title_key, recursive=False), ch] for ch in contents]
+    return pairs
+
+
+def _parse_page(pages, package_dict, package_rename):
+    data_pages = []
+    for page_title, page in pages:
+        h2 = page_title.h2.text.strip()
+        title = strip(h2)
+
+        if page.find(class_="installation"):
+            package = h2.split("\xa0", 1)[-1].split()[0]
+            module = split_name2(package)
+            package_info = package_dict[package_rename.get(module, module)]
+        else:
+            package = None
+            package_info = None
+
+        inputs = page.find_all("pre", class_="userinput")
+        if not inputs:
+            inputs = page.find_all("pre", class_="root")
+
+        user_inputs = []
+        for ipt in inputs:
+            if "class" in ipt.parent.attrs:
+                cmd_class = ipt.parent["class"]
+            else:
+                cmd_class = ipt.parent.parent["class"]
+            cmd_class = " ".join(cmd_class)
+
+            for kbd in ipt.find_all("kbd"):
+                cmd = kbd.text.strip()
+                cmd_params = {
+                    "command": cmd,
+                    "class": cmd_class,
+                    "check": is_check(cmd),
+                }
+                user_inputs.append(cmd_params)
+        tmp_page_data = {
+            "title": title,
+            "package": package,
+            "info": package_info,
+            "user_inputs": user_inputs,
+        }
+        data_pages.append(tmp_page_data)
+    return data_pages
+
+
+def parse_html(html_file, package_dict, package_rename, save_dir, save_all):
+    chapter_classes = ["chapter", "preface", "appendix"]
+    section_classes = ["sect1", "wrap"]
+    part_classes = ["part", "preface", "index", "toc", TITLE_CLASS]
+
     logging.info(f"read {html_file}")
     with open(html_file, encoding="iso-8859-1") as f:
         text = f.read()
@@ -133,76 +202,59 @@ def parse_html(html_file, package_dict, package_rename, savedir):
     soup = BeautifulSoup(text, "html.parser")
     body = soup.body
     book = body.find("div", class_="book")
+
     # toc = book.find(class_="toc")
     # preface = book.find(class_="preface")
+    parts_titles = book.find_all("div", class_=TITLE_CLASS, recursive=False)
+    parts_list = book.find_all("div", class_=part_classes, recursive=False)
 
-    parts_all = book.find_all("div", class_="part", recursive=False)
-    parts = parts_all[1:-1]  # part2 ~ part4 (chapter 2~11)
+    has_title = True  # title in chapter
+    if len(parts_titles) > 1:  # tile in front of chapter
+        has_title = False
+        parts = []
+        for i, part in enumerate(parts_list):
+            if "part" in part["class"]:
+                part_title = parts_list[i - 1]
+                assert TITLE_CLASS in part_title["class"]
+                parts.append([part_title, part])
+    else:
+        parts = [
+            [part.find(class_=TITLE_CLASS), part]
+            for part in parts_list
+            if "part" in part["class"]
+        ]
+
+    assert len(parts) == PARTS_COUNT
+    if not save_all:
+        parts = parts[1:-1]  # Part II ~ Part IV
+
     script_data = []
-    for part in parts:
-        title_part = part.find(class_="titlepage").h1.text.strip()
-        chapters = part.find_all("div", class_="chapter")
-
+    for part_title, part in parts:
+        title_part = part_title.h1.text.strip()
+        chapters_pairs = _get_content_pairs(has_title, part, chapter_classes, TITLE_CLASS)
         data_chap = []
-        for chap in chapters:
-            title_chap = chap.h2.text.strip()
-            pages = chap.find_all("div", lang="en", recursive=False)
-            data_pages = []
-            for page in pages:
-                h2 = page.h2.text.strip()
-                title = strip(h2)
-
-                if page.find(class_="installation"):
-                    package = h2.split("\xa0")[1].split()[0]
-                    module = split_name2(package)
-                    package_info = package_dict[package_rename.get(module, module)]
-                else:
-                    package = None
-                    package_info = None
-
-                inputs = page.find_all("pre", class_="userinput")
-                if not inputs:
-                    inputs = page.find_all("pre", class_="root")
-
-                if inputs:
-                    userinputs = []
-                    for ipt in inputs:
-                        if "class" in ipt.parent.attrs:
-                            cmd_class = ipt.parent["class"]
-                        else:
-                            cmd_class = ipt.parent.parent["class"]
-                        cmd_class = " ".join(cmd_class)
-
-                        for kbd in ipt.find_all("kbd"):
-                            cmd = kbd.text.strip()
-                            userinputs.append(
-                                {
-                                    "command": cmd,
-                                    "class": cmd_class,
-                                    "check": is_check(cmd),
-                                }
-                            )
-                    tmp_page_data = {
-                        "title": title,
-                        "package": package,
-                        "info": package_info,
-                        "userinputs": userinputs,
-                    }
-                    data_pages.append(tmp_page_data)
+        for chap_title, chap in chapters_pairs:
+            title_chap = chap_title.h2.text.strip()
+            sect_pairs = _get_content_pairs(
+                has_title, chap, section_classes, TITLE_CLASS
+            )
+            data_pages = _parse_page(sect_pairs, package_dict, package_rename)
             tmp_chap_data = {
                 "title_chapter": strip(title_chap),
-                "page_count": len(pages),
+                "page_count": len(sect_pairs),
                 "pages": data_pages,
+                "class": chap["class"],
             }
             data_chap.append(tmp_chap_data)
+
         tmp_part_data = {
             "title_part": strip(title_part),
-            "chapter_count": len(chapters),
+            "chapter_count": len(chapters_pairs),
             "chapters": data_chap,
         }
         script_data.append(tmp_part_data)
 
-    savefile = Path(savedir, "scripts.json")
+    savefile = Path(save_dir, "scripts.json")
     logging.info(f"save to json: {savefile}")
     with open(savefile, "w") as fw:
         json.dump(script_data, fw, indent=2, ensure_ascii=False)
@@ -218,7 +270,7 @@ def copy_tcl(pack_info):
     return [fullname2, stem2, cmd]
 
 
-def output_scripts(script_data, savedir, use_tar=False, line_len=72):
+def output_scripts(script_data, save_dir, use_tar=False, line_len=72):
     line_part = "#" * line_len
     line_chap = "# " + "=" * (line_len - 2)
     line_page = "# " + "-" * (line_len - 2)
@@ -228,7 +280,9 @@ def output_scripts(script_data, savedir, use_tar=False, line_len=72):
 
     logging.info("parse to scripts")
     last_check = 0
+    chapter_index_last = None
     for part in script_data:
+        prefix = re.sub(r"[\-\s]+", "-", part["title_part"].split(".")[0])
         for chap in part["chapters"]:
             texts = [
                 line_part,
@@ -251,11 +305,14 @@ def output_scripts(script_data, savedir, use_tar=False, line_len=72):
                     if page["info"]["name"] == "tcl":
                         fullname, stem, cmd = copy_tcl(page["info"])
                         texts.append(cmd)
-                    texts.extend([
-                        f"{cmt1}begin_install {stem} {suffix}", f"{cmt2}tar -xf {fullname} && cd {stem}", ""
-                    ])
 
-                for ipt in page["userinputs"]:
+                    lines = [
+                        f"{cmt1}begin_install {stem} {suffix}",
+                        f"{cmt2}tar -xf {fullname} && cd {stem}",
+                    ]
+                    texts.extend(lines + [""])
+
+                for ipt in page["user_inputs"]:
                     cmd = ipt["command"]
                     last_check = ((last_check % 2) * 2) + int(ipt["check"])
                     if ipt["check"] or (ipt["class"] not in input_class):
@@ -275,46 +332,64 @@ def output_scripts(script_data, savedir, use_tar=False, line_len=72):
                             texts.append("")
 
                 if page["package"]:
-                    texts.extend([
-                        "", f"{cmt2}cd .. && rm -rf {stem}", f"{cmt1}end_install"
-                    ])
+                    lines = ["", f"{cmt2}cd .. && rm -rf {stem}", f"{cmt1}end_install"]
+                    texts.extend(lines)
 
-            chapter_index = int(chap["title_chapter"].split(".")[0].split(" ")[-1])
-            savefile = Path(savedir, "ch{:02d}.sh".format(chapter_index))
+            if "preface" in chap["class"]:
+                save_name = "{}-ch{:02d}-pre.sh".format(prefix, chapter_index_last + 1)
+            elif "appendix" in chap["class"]:
+                name = chap["title_chapter"].split(".")[0].lower().strip()
+                name = re.sub(r"[\-\s]+", "-")
+                save_name = prefix + "-" + name + ".sh"
+            else:
+                chapter_index = int(chap["title_chapter"].split(".")[0].split(" ")[-1])
+                chapter_index_last = chapter_index
+                save_name = "{}-ch{:02d}.sh".format(prefix, chapter_index)
+
+            savefile = Path(save_dir, save_name)
             logging.info(f"save to {savefile}")
             with open(savefile, "w") as fw:
                 texts = strip2("\n".join(texts))
                 fw.write(texts)
 
 
-def process(lfs_version, doc_dir, save_dir):
-    version_short = lfs_version.split("-")[0]
-    prefix = lfs_version
-    savedir = f"{save_dir}/{prefix}"
-    doc_version = lfs_version
-    html_file = f"{doc_dir}/{doc_version}/LFS-BOOK-{version_short}-NOCHUNKS.html"
-    md5_file = f"{doc_dir}/{doc_version}/md5sums"
+def process(lfs_version, doc_dir, out_dir, save_all):
+    data_dir = Path(doc_dir, lfs_version)
 
+    html_files = list(Path(data_dir).glob("LFS*-NOCHUNKS.html"))
+    if not html_files:
+        logging.warning(f"No html file in {data_dir}")
+        return
+    html_file = html_files[0]
+
+    md5_file = Path(data_dir, "md5sums")
     logging.info(f"process lfs version = {lfs_version}")
-    savedir = Path(savedir)
-    if not savedir.exists():
-        logging.info(f"make dir ${savedir}")
-        savedir.mkdir(parents=True)
+
+    save_dir = Path(out_dir, lfs_version)
+    if save_dir.exists():
+        shutil.rmtree(save_dir)
+    logging.info(f"make dir {save_dir}")
+    save_dir.mkdir(parents=True)
 
     package_dict, package_rename = extract_packages(md5_file)
-    script_data = parse_html(html_file, package_dict, package_rename, savedir)
-    output_scripts(script_data, savedir, use_tar=False)
+    script_data = parse_html(html_file, package_dict, package_rename, save_dir, save_all)
+    output_scripts(script_data, save_dir, use_tar=False)
 
 
 if __name__ == "__main__":
     """
     docs: https://www.linuxfromscratch.org/lfs/view/
     """
-    fmt = "%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s"
+    fmt = "%(asctime)s [line:%(lineno)d] %(levelname)s %(message)s"
     logging.basicConfig(level=logging.INFO, format=fmt)
 
-    doc_dir = "docs"
-    save_dir = "scripts"
-    for lfs_version in ["12.0", "12.0-systemd"]:
-        process(lfs_version, doc_dir, save_dir)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", type=str, required=True)
+    parser.add_argument("--data", type=str, default="data")
+    parser.add_argument("--output", type=str, default="output")
+    parser.add_argument("--all", action="store_true")
+
+    args = parser.parse_args()
+    logging.info(f"args = {args}")
+    process(args.version, args.data, args.output, args.all)
     logging.info("end")
